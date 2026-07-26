@@ -1,0 +1,62 @@
+{
+  "type": "long-doc",
+  "lang": "cn",
+  "content": {
+    "title": "从零构建一个 AI Agent 应用",
+    "subtitle": "以 OpenMinis 为样本的 iOS / Android 原生 Agent 工程手册",
+    "author": "wmsyw",
+    "date": "2026-07-26",
+    "summary": {
+      "claim": "移动端 AI Agent 的核心不是接入聊天 API，而是建立模型、工具、Linux 沙箱、设备权限、持久化和系统生命周期之间的稳定边界。本手册以 OpenMinis 双端约 34 万行源码为证据，拆解一条可从最小闭环逐步扩展到完整产品的工程路径。",
+      "takeaways": [
+        "内部消息模型必须与 Anthropic、OpenAI、Gemini 等 Provider 的 wire format 分离，才能稳定承载流式输出、thinking 和工具调用。",
+        "工具层应保持克制：OpenMinis 用真实 Linux 沙箱承载通用能力，再通过 Native Offload 安全访问宿主设备功能。",
+        "移动端产品化难点集中在长对话增量渲染、后台保活、权限确认、崩溃诊断和多端一致性，而不是单次模型请求。",
+        "扩展到 macOS、Windows、Linux 时，应复用纯逻辑和能力接口，替换沙箱、系统集成、权限和 UI 平台层。"
+      ]
+    },
+    "chapters": [
+      {
+        "title": "第一部分：系统骨架",
+        "claim": "第 0–4 章从仓库地图进入 Agent 核心循环，解释上下文预算和多模型 Provider 如何共同形成一次可持续的请求闭环。",
+        "paragraphs": [
+          "序章和整体架构章先给出双端代码规模、启动链路和七层目录地图，使后续每个机制都能落到真实模块、符号和行号，而不是停留在不可验证的概念图。",
+          "Agent 循环、上下文工程和 Provider 章随后拆开 SSE 增量、工具状态机、压缩策略、消息格式转换及 OAuth 认证，建立平台无关的核心契约。"
+        ]
+      },
+      {
+        "title": "第二部分：Agent 能力面",
+        "claim": "第 5–10 章解释工具定义、两种移动端 Linux 沙箱、Native Offload、Skills、MCP 和浏览器自动化如何组成可扩展能力面。",
+        "paragraphs": [
+          "文件工具、权限门和结果回灌构成 Agent 与执行环境的最小协议；iOS 通过 iSH 模拟 ARM64 Linux，Android 通过 PRoot 在用户态重写系统调用路径。",
+          "Native Offload 把宿主的日历、相册、通知和辅助功能等能力安全暴露给沙箱；Skills、Memory、MCP 和浏览器自动化则降低新增能力的发版成本。"
+        ]
+      },
+      {
+        "title": "第三部分：从 Demo 到产品",
+        "claim": "第 11–15 章覆盖持久化、同步、流式 UI、系统入口、语音和可观测性，这些工程层决定 Agent 能否在真实移动设备上长期可靠运行。",
+        "paragraphs": [
+          "SQLite、Room、删除墓碑和冲突策略解决会话与附件的一致性；UIKit 与 Compose 的增量渲染策略解决数千行对话的解析和布局成本。",
+          "后台任务、前台服务、App Intents、语音纠错、Debug RPC、崩溃日志和真机沙箱测试共同构成产品化质量边界。"
+        ]
+      },
+      {
+        "title": "第四部分：移植与实施",
+        "claim": "第 16–17 章把 34 万行实现压缩成可移植分层和七阶段路线图，明确第一周应该闭环什么、哪些能力可以推迟、桌面端需要替换哪些层。",
+        "paragraphs": [
+          "跨平台分析把系统分为纯逻辑核心、能力接口和平台绑定层，说明为什么当前项目几乎不共享源码，却通过数据、测试向量和设计追踪码保持关键行为一致。",
+          "实施路线以每一步都能运行和验收为约束，先完成流式对话与工具循环，再逐步加入持久化、沙箱、设备能力、性能硬化和生态扩展，并为每阶段设置可执行的验收动作。"
+        ]
+      }
+    ],
+    "references": [
+      "README.md — 产品能力与仓库布局",
+      "BUILDING.md — iOS / Android 原生依赖与构建要求",
+      "docs/specs/minis-url-scheme.md — 会话作用域资源地址规范",
+      "docs/specs/ios-sandbox-ish-summary.md — iSH 沙箱集成摘要",
+      "docs/specs/debug-server-api.md — Debug JSON-RPC 接口规范",
+      "src/ios — Swift / SwiftUI / UIKit 实现",
+      "src/android — Kotlin / Compose / JNI 实现"
+    ]
+  }
+}

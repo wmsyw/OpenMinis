@@ -1,0 +1,18 @@
+flowchart TD
+    shortcut["Siri / Shortcuts / 桌面快捷动作"] --> intent["iOS AppIntent 或 Android shortcut"]
+    share["系统分享菜单"] --> staging["App Group / filesDir 暂存"]
+    deeplink["minis:// 导航或资源地址"] --> router["DeepLinkRouter / DeepLinkHandler"]
+    alarm["AlarmKit / AlarmManager"] --> headless["后台触发器"]
+    intent --> session["解析或创建 sessionId"]
+    staging --> session
+    router --> session
+    headless --> session
+    session --> loop["同一 Agent loop / shell / native offload"]
+    loop --> status["SessionActivityTracker"]
+    status --> iosla["iOS Live Activity + 本地通知"]
+    status --> androidfgs["Android 前台通知"]
+    status --> overlay["Android 悬浮窗（可选）"]
+    loop --> resource["/var/minis/<namespace>/<path>"]
+    resource --> result["tool result minis_url"]
+    result --> markdown["Markdown 图片 / 文件链接"]
+    markdown --> preview["当前会话内原生预览"]

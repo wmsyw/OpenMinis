@@ -1,0 +1,14 @@
+flowchart LR
+    model["模型：tool_call browser_use"] --> input["BrowserActionInput 解析"]
+    input --> pool["BrowserTabPool：选 Tab、串行化、超时"]
+    pool --> webview["WKWebView / Android WebView"]
+    webview --> page["网页 DOM、Cookie、渲染器"]
+    page --> js["BrowserUseJS：注入脚本"]
+    js --> repr["文本摘要、骨架树、元素列表"]
+    webview --> shot["截图：JPEG + base64 / 文件路径"]
+    repr --> result["BrowserActionResult"]
+    shot --> result
+    result --> bridge["AIChatViewModel / ChatViewModel 工具结果"]
+    bridge --> model
+    user["用户人工接管"] --> ui["浏览器面板"]
+    ui --> webview

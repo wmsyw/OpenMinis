@@ -1,0 +1,16 @@
+stateDiagram-v2
+    [*] --> idle
+    idle --> streaming : "send()/sendMessage() 接受输入"
+    streaming --> toolPending : "ToolUseStart / contentBlockStart(toolUse)"
+    toolPending --> toolRunning : "ToolCallComplete 后执行器启动"
+    toolRunning --> resume : "tool_result 全部生成并持久化"
+    resume --> streaming : "下一次 API 返回首个 text/thinking/tool 事件"
+    streaming --> done : "toolCalls 为空且 stopReason 可结束"
+    streaming --> error : "provider/stream/context 异常"
+    streaming --> cancelled : "Stop 或 Task/Job cancellation"
+    toolRunning --> cancelled : "shell/browser/tool 被停止"
+    resume --> cancelled : "用户在等待下一轮时 Stop"
+    error --> resume : "Retry/Resume 保留已完成 history"
+    done --> idle : "外层 task 清理 active tracker"
+    error --> idle : "外层 task 清理 active tracker"
+    cancelled --> idle : "cleanup 完成；有队列时重新进入 streaming"

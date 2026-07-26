@@ -1,0 +1,22 @@
+flowchart TD
+    Mic["麦克风采样"] --> IOSVAD["iOS VoiceActivityDetector\nRealTimeCutVADLibrary"]
+    Mic --> ANDCAP["Android AudioRecord"]
+    IOSVAD --> WAV["16 kHz mono WAV"]
+    ANDCAP --> WAV
+    WAV --> SYSIOS["iOS SystemVoiceProvider\nSpeech framework"]
+    WAV --> SYSAND["Android SystemSpeechRecognitionEngine\nSpeechRecognizer"]
+    WAV --> CLOUD["VoiceProvider\n云端 ASR / chat audio ASR"]
+    SYSIOS --> TEXT["Transcript"]
+    SYSAND --> TEXT
+    CLOUD --> TEXT
+    TEXT --> RET["分词 + 音韵键\n候选检索与融合"]
+    RET --> LLM["CorrectionStrategy\nLLM 仅输出文本"]
+    LLM --> GUARD["change ratio + token diff\nCorrectionAdmission"]
+    GUARD --> EDIT["可编辑 transcript"]
+    EDIT --> LEARN["用户确认的纠错\n写入 confusion_dictionary"]
+    REPLY["Assistant 文本"] --> SPLIT["句子切分"]
+    SPLIT --> TTS["系统 TTS 或云端 TTS"]
+    TTS --> PLAY["顺序播放 / 背景音频"]
+    MEDIA["图片/音频/视频附件"] --> PARTS["message parts / mediaRef"]
+    PARTS --> MODEL["模型多模态请求"]
+    MEDIA --> RENDER["缩略图 + minis:// 渲染"]

@@ -1,0 +1,170 @@
+[
+  {
+    "chapter": "00-preface.md",
+    "index": 1,
+    "stem": "00-preface-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/00-preface-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/00-preface-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/00-preface-01.png"
+  },
+  {
+    "chapter": "01-architecture-overview.md",
+    "index": 1,
+    "stem": "01-architecture-overview-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/01-architecture-overview-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/01-architecture-overview-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/01-architecture-overview-01.png"
+  },
+  {
+    "chapter": "01-architecture-overview.md",
+    "index": 2,
+    "stem": "01-architecture-overview-02",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/01-architecture-overview-02.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/01-architecture-overview-02.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/01-architecture-overview-02.png"
+  },
+  {
+    "chapter": "02-agent-loop.md",
+    "index": 1,
+    "stem": "02-agent-loop-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/02-agent-loop-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/02-agent-loop-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/02-agent-loop-01.png"
+  },
+  {
+    "chapter": "03-context-engineering.md",
+    "index": 1,
+    "stem": "03-context-engineering-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/03-context-engineering-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/03-context-engineering-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/03-context-engineering-01.png"
+  },
+  {
+    "chapter": "04-provider-layer.md",
+    "index": 1,
+    "stem": "04-provider-layer-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/04-provider-layer-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/04-provider-layer-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/04-provider-layer-01.png"
+  },
+  {
+    "chapter": "04-provider-layer.md",
+    "index": 2,
+    "stem": "04-provider-layer-02",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/04-provider-layer-02.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/04-provider-layer-02.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/04-provider-layer-02.png"
+  },
+  {
+    "chapter": "05-tool-system.md",
+    "index": 1,
+    "stem": "05-tool-system-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/05-tool-system-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/05-tool-system-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/05-tool-system-01.png"
+  },
+  {
+    "chapter": "06-sandbox-ios-ish.md",
+    "index": 1,
+    "stem": "06-sandbox-ios-ish-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/06-sandbox-ios-ish-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/06-sandbox-ios-ish-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/06-sandbox-ios-ish-01.png"
+  },
+  {
+    "chapter": "06-sandbox-ios-ish.md",
+    "index": 2,
+    "stem": "06-sandbox-ios-ish-02",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/06-sandbox-ios-ish-02.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/06-sandbox-ios-ish-02.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/06-sandbox-ios-ish-02.png"
+  },
+  {
+    "chapter": "07-sandbox-android-proot.md",
+    "index": 1,
+    "stem": "07-sandbox-android-proot-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/07-sandbox-android-proot-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/07-sandbox-android-proot-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/07-sandbox-android-proot-01.png"
+  },
+  {
+    "chapter": "08-native-offload.md",
+    "index": 1,
+    "stem": "08-native-offload-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/08-native-offload-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/08-native-offload-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/08-native-offload-01.png"
+  },
+  {
+    "chapter": "09-skills-memory-mcp.md",
+    "index": 1,
+    "stem": "09-skills-memory-mcp-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/09-skills-memory-mcp-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/09-skills-memory-mcp-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/09-skills-memory-mcp-01.png"
+  },
+  {
+    "chapter": "10-browser-automation.md",
+    "index": 1,
+    "stem": "10-browser-automation-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/10-browser-automation-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/10-browser-automation-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/10-browser-automation-01.png"
+  },
+  {
+    "chapter": "11-persistence-and-sync.md",
+    "index": 1,
+    "stem": "11-persistence-and-sync-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/11-persistence-and-sync-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/11-persistence-and-sync-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/11-persistence-and-sync-01.png"
+  },
+  {
+    "chapter": "12-ui-and-streaming-render.md",
+    "index": 1,
+    "stem": "12-ui-and-streaming-render-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/12-ui-and-streaming-render-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/12-ui-and-streaming-render-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/12-ui-and-streaming-render-01.png"
+  },
+  {
+    "chapter": "13-system-integration.md",
+    "index": 1,
+    "stem": "13-system-integration-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/13-system-integration-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/13-system-integration-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/13-system-integration-01.png"
+  },
+  {
+    "chapter": "14-voice-and-media.md",
+    "index": 1,
+    "stem": "14-voice-and-media-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/14-voice-and-media-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/14-voice-and-media-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/14-voice-and-media-01.png"
+  },
+  {
+    "chapter": "15-engineering-and-observability.md",
+    "index": 1,
+    "stem": "15-engineering-and-observability-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/15-engineering-and-observability-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/15-engineering-and-observability-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/15-engineering-and-observability-01.png"
+  },
+  {
+    "chapter": "16-cross-platform-portability.md",
+    "index": 1,
+    "stem": "16-cross-platform-portability-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/16-cross-platform-portability-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/16-cross-platform-portability-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/16-cross-platform-portability-01.png"
+  },
+  {
+    "chapter": "17-roadmap-from-scratch.md",
+    "index": 1,
+    "stem": "17-roadmap-from-scratch-01",
+    "source": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/17-roadmap-from-scratch-01.mmd",
+    "svg": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/17-roadmap-from-scratch-01.svg",
+    "png": "/Users/shenxt/Dev/PI/OpenMinis/docs/learning/kami/assets/diagrams/17-roadmap-from-scratch-01.png"
+  }
+]

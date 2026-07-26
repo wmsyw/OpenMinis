@@ -1,0 +1,20 @@
+flowchart TD
+    send["发送或 agent loop 下一轮"] --> usage["读取 API usage；无 usage 则本地估算"]
+    usage --> policy["ContextPolicy 分层判断"]
+    policy --> ok["OK：按有效历史请求"]
+    policy --> offload["旧工具结果/图片 offload"]
+    offload --> recheck["重新估算或使用 API 基线"]
+    recheck --> compact["选择 marker 锚点并切片"]
+    compact --> transcript["构造带角色的摘要 transcript"]
+    transcript --> summary["摘要 LLM：过去时、保留路径和结果"]
+    summary --> large{"context-too-large?"}
+    large -->|"是且 depth < 3"| split["按消息二分，分别摘要后合并"]
+    split --> summary
+    large -->|"否"| marker["持久化 v2 marker，缓存 summary"]
+    marker --> effective["推理时保留最近 3 个 user-text 回合"]
+    effective --> inject["摘要插入锚点后第一个 user 消息"]
+    inject --> provider["apply image budget 后发给 Provider"]
+    summary --> failure{"取消、空摘要或锚点失败?"}
+    failure -->|"是"| keep["不写 marker，保留原历史并显示错误"]
+    failure -->|"否"| marker
+    provider --> ok

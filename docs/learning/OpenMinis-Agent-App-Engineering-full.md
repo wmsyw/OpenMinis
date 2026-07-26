@@ -865,9 +865,9 @@ Android 的 `ChatViewModel` 是普通 `ViewModel`，通过 `MutableStateFlow` �
 | iOS | `src/ios/Agent/` | 103 | 65,966 | `**/*.swift` |
 | iOS | `src/ios/Providers/` | 63 | 27,378 | `**/*.swift` |
 | iOS | `src/ios/Views/` | 79 | 55,947 | `**/*.swift` |
-| iOS | `src/ios/Shared/` | 53 | 8,188 | `**/*.(swift|h|m)` |
-| iOS | `src/ios/NativeOffloads/` | 64 | 24,259 | `**/*.(swift|h|m)` |
-| iOS | `src/ios/iSH/` | 14 | 6,586 | `**/*.(swift|h|m)` |
+| iOS | `src/ios/Shared/` | 53 | 8,188 | <code>**/*.(swift&#124;h&#124;m)</code> |
+| iOS | `src/ios/NativeOffloads/` | 64 | 24,259 | <code>**/*.(swift&#124;h&#124;m)</code> |
+| iOS | `src/ios/iSH/` | 14 | 6,586 | <code>**/*.(swift&#124;h&#124;m)</code> |
 | Android | `.../app/ui/` | 146 | 74,379 | `**/*.kt` |
 | Android | `.../app/provider/` | 23 | 8,133 | `**/*.kt` |
 | Android | `.../app/tools/` | 8 | 881 | `**/*.kt` |
@@ -1828,7 +1828,7 @@ Android 使用同样的四种 `AgentContentPart`：文本、`ToolUse`、`ToolRes
          + 图片 token + 本轮输入 + 预留输出空间
 ```
 
-但代码中的快速估算函数只遍历有效历史，并没有把完整 system prompt 和工具 schema 重新编码进去；这是从 `estimateContextTokens()` 的循环范围和 `runAgentLoop` 分开构建 prompt、tools 的代码可以直接看出的。因此，在实现自己的客户端时，应把本地估算当作“触发提前保护”的信号，不应当把它当作 Provider 最终账单。此处“system prompt 未纳入该函数”是对代码结构的观察，结论属于**[推断]**；对应代码位置为 `src/ios/Agent/Chat/AIChatViewModel+Offloading.swift:309-366`、`src/ios/Agent/Chat/AIChatViewModel.swift:4267-4310`。
+但代码中的快速估算函数只遍历有效历史，并没有把完整 system prompt 和工具 schema 重新编码进去；这是从 `estimateContextTokens()` 的循环范围和 `runAgentLoop` 分开构建 prompt、tools 的代码可以直接看出的。因此，在实现自己的客户端时，应把本地估算当作“触发提前保护”的信号，不应当把它当作 Provider 最终账单。此处“system prompt 未纳入该函数”是对代码结构的观察，结论属于 **[推断]**；对应代码位置为 `src/ios/Agent/Chat/AIChatViewModel+Offloading.swift:295-367` 与 `src/ios/Agent/Chat/AIChatViewModel.swift:4388-4429`。
 
 预算还有两个维度：
 
@@ -2412,7 +2412,7 @@ iOS BPE 词表比字符除法准确，但 Provider 仍可能采用不同 tokeniz
 
 #### 3.10.2 system prompt 也会吃窗口
 
-`estimateContextTokens` 只遍历有效历史 part，而 `runAgentLoop` 在另处组装 system prompt 和 tools；所以本地历史估算可能低于 wire request。这个风险通过策略 headroom、动态 max output、真实 usage 和 Provider 错误拆分兜底，但若从零实现，建议把 system prompt、tool schema 和预留输出明确计入同一个 `BudgetBreakdown`。现有代码证据见 `src/ios/Agent/Chat/AIChatViewModel+Offloading.swift:309-366`、`src/ios/Agent/Chat/AIChatViewModel.swift:4267-4310`、`src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:7920-8132`；“应合并计数”是**[推断]**的工程建议。
+`estimateContextTokens` 只遍历有效历史 part，而 `runAgentLoop` 在另处组装 system prompt 和 tools；所以本地历史估算可能低于 wire request。这个风险通过策略 headroom、动态 max output、真实 usage 和 Provider 错误拆分兜底，但若从零实现，建议把 system prompt、tool schema 和预留输出明确计入同一个 `BudgetBreakdown`。现有代码证据见 `src/ios/Agent/Chat/AIChatViewModel+Offloading.swift:309-366`、`src/ios/Agent/Chat/AIChatViewModel.swift:4388-4429`、`src/android/app/src/main/java/com/openminis/app/ui/chat/ChatViewModel.kt:5505-5598`；“应合并计数”是 **[推断]** 的工程建议。
 
 #### 3.10.3 不要把 compaction 做成 destructive truncate
 
@@ -2950,7 +2950,7 @@ Gemini 的 `contents[].parts[]` 是 protobuf oneof，空字符串不是一个有
 
 | 问题 | Provider 边界的修复 | 依据 |
 |---|---|---|
-| Responses id 含 `|`，Anthropic 不接受 | 出站 Anthropic 统一 `sanitizeToolId` | `src/android/app/src/main/java/com/openminis/app/provider/anthropic/AnthropicProvider.kt:560-569`、`src/ios/Providers/AgentProvider.swift:5-12` |
+| Responses id 含 <code>&#124;</code>，Anthropic 不接受 | 出站 Anthropic 统一 `sanitizeToolId` | `src/android/app/src/main/java/com/openminis/app/provider/anthropic/AnthropicProvider.kt:560-569`、`src/ios/Providers/AgentProvider.swift:5-12` |
 | tool_use 没有结果 | 复制消息后注入 synthetic error tool_result | `src/ios/Providers/Anthropic/AnthropicAgentProvider.swift:535-587` |
 | orphan tool_result | 仅保留最近 assistant 声明过的 id | `src/android/app/src/main/java/com/openminis/app/provider/anthropic/AnthropicProvider.kt:430-483` |
 | Chat tool reply 顺序错误 | 收集所有 tool reply，再紧跟 assistant.tool_calls 重排 | `src/ios/Providers/OpenAI/OpenAIAgentProvider.swift:1377-1435` |
@@ -3044,18 +3044,18 @@ Claude OAuth 与 xAI OAuth 都是 loopback redirect + authorization code + PKCE�
 ```mermaid
 sequenceDiagram
     participant App as "Minis App"
-    participant Loop as "Local callback server"
+    participant Callback as "Local callback server"
     participant Browser as "Safari or Custom Tab"
     participant Auth as "Claude/xAI authorization"
     participant Token as "Token endpoint"
     participant Store as "Keychain or EncryptedPrefs"
     App->>App: "Generate verifier, S256 challenge, state"
-    App->>Loop: "Bind fixed loopback port and callback"
+    App->>Callback: "Bind fixed loopback port and callback"
     App->>Browser: "Open authorize URL with challenge and state"
     Browser->>Auth: "User signs in and approves"
     Auth-->>Browser: "Redirect code and state to loopback"
-    Browser->>Loop: "GET /callback?code=...&state=..."
-    Loop-->>App: "Resume callback continuation"
+    Browser->>Callback: "GET /callback?code=...&state=..."
+    Callback-->>App: "Resume callback continuation"
     App->>App: "Reject state mismatch"
     App->>Token: "POST code, redirect_uri, verifier"
     Token-->>App: "access_token, refresh_token, expires_in"
@@ -4653,7 +4653,7 @@ sequenceDiagram
 
 **第一套是 pipe reader。** stdout 和 stderr 各有一个并发 reader；`poll` 每 500ms 检查 EOF/完成状态，按最长完整 UTF-8 前缀解码，保留不完整多字节序列到下一轮，然后按换行分发 line callback（`src/ios/iSH/ISHShellExecutor.m:693-846`）。进程 exit notification 到达后，代码仍等待约 200ms 让 reader drain，再在锁内复制 `NSMutableString`，最后回 completion（`src/ios/iSH/ISHShellExecutor.m:630-688`）。
 
-**第二套是旧的 kernel prompt buffer。** `ISHKernel.executeCommandAndWait` 使用 `_commandOutputBuffer`，按 `$ `、`# `、`user@host:path$ 等正则判断 prompt，去掉第一行 echo 和尾部空白；没有 prompt 且超过 100000 字符时返回 `Output too large without prompt`（`src/ios/iSH/ISHKernel.m:877-1003`）。这条 API 与当前 agent coordinator 的 pipe completion 不同，不能把 100KB 当成 shell_execute 的模型输出上限。
+**第二套是旧的 kernel prompt buffer。** `ISHKernel.executeCommandAndWait` 使用 `_commandOutputBuffer`，按 `$ `、`# `、`user@host:path$ ` 等正则判断 prompt，去掉第一行 echo 和尾部空白；没有 prompt 且超过 100000 字符时返回 `Output too large without prompt`（`src/ios/iSH/ISHKernel.m:877-1003`）。这条 API 与当前 agent coordinator 的 pipe completion 不同，不能把 100KB 当成 shell_execute 的模型输出上限。
 
 **第三套是 agent result 清洗。** `runRaw` 在收到 coordinator 结果后先折叠 `\r`，把类似下载进度的同一行覆盖为最终片段，再剥离 CSI、OSC、ST 和单字符 ESC；清洗后的字符串超过 `AIChatViewModel.kMaxToolResultChars = 15000` 时保留一半头部和一半尾部，并要求模型用 `file_read` 读完整文件（`src/ios/Agent/Chat/AIChatViewModel.swift:14-24`；`src/ios/Agent/Chat/AIChatViewModel+ISHCommand.swift:161-249`）。
 
@@ -8373,7 +8373,7 @@ iOS 的 `CollectionViewMessageListV3` 是 `UIViewControllerRepresentable`，实�
 
 这使一个回答可以变成多个可回收 cell：已完成的段落、代码块、表格和工具胶囊各自拥有高度和身份；只有正在增长的 cell 需要频繁重排。`BridgedAssistantBlockV3` 明确声明“不使用 GeometryReader，UIKit self-sizing 是唯一高度源”，见 `src/ios/Agent/MessageList/CollectionViewMessageListV3.swift:195-210`。
 
-**为什么不是直接用 SwiftUI `List`/`LazyVStack`：**仓库没有一条“SwiftUI List 永远不能用”的规则，反而把 SwiftUI 继续用于 cell 内容。可验证的结论是：当每个 cell 内有 TextKit、`NSTextAttachment`、异步图片/公式和动态高度时，UIKit 的可控 self-sizing、diffable snapshot、布局缓存和滚动偏移修正提供了默认 List 难以同时提供的控制面。[推断] 因此迁移到另一套平台时，应复用“原生列表做回收和位置管理、声明式组件做单块内容”的分层，而不是照搬 UIKit 类型名。
+**为什么不是直接用 SwiftUI `List`/`LazyVStack`：** 仓库没有一条“SwiftUI List 永远不能用”的规则，反而把 SwiftUI 继续用于 cell 内容。可验证的结论是：当每个 cell 内有 TextKit、`NSTextAttachment`、异步图片/公式和动态高度时，UIKit 的可控 self-sizing、diffable snapshot、布局缓存和滚动偏移修正提供了默认 List 难以同时提供的控制面。[推断] 因此迁移到另一套平台时，应复用“原生列表做回收和位置管理、声明式组件做单块内容”的分层，而不是照搬 UIKit 类型名。
 
 #### 12.2.3 Android 的选择：LazyColumn 外壳，块级 item，文本分片
 
@@ -8778,7 +8778,7 @@ Markdown 增量合并只能在语法安全边界做。表格中 `|`、链接中 
 | 用户阅读历史时被拉到底 | scroll mode | iOS `scrollMode`：`src/ios/Agent/MessageList/CollectionViewMessageListV3.swift:643-650`；Android `isNearBottom/userScrolledAway`：`src/android/app/src/main/java/com/openminis/app/ui/chat/ChatScreen.kt:995-1055`、`src/android/app/src/main/java/com/openminis/app/ui/chat/ChatScreen.kt:1210-1290` | 不要无条件 `scrollTo(last)`；分离 programmatic scroll 与用户滚动。 |
 | 公式出现后下方内容跳动 | math result/height invalidation | iOS scheduler：`src/ios/Agent/Markdown/MathRenderScheduler.swift:31-109`；Android render key：`src/android/app/src/main/java/com/openminis/app/ui/chat/KatexWebViewPool.kt:30-70` | 不要把异步公式结果当普通 string 替换而不清 height cache。 |
 | 图片是旧尺寸或占位高度不消失 | media cache / attachment size | iOS attachment cache：`src/ios/Views/Chat/SelectableMarkdownView.swift:1000-1057`；Android resolver：`src/android/app/src/main/java/com/openminis/app/ui/chat/StreamingMarkdownText.kt:2141-2198` | 不要只缓存文件名；纳入 session、主题、宽度，并在完成时发尺寸信号。 |
-| 表格列错位 | block parser | iOS table nodes：`src/ios/Agent/Markdown/MinisMarkdownParser.swift:180-225`；Android `splitTableRow`：`src/android/app/src/main/java/com/openminis/app/ui/markdown/MarkdownParser.kt:298-328` | 不要用未考虑 link 括号的 `split("|")`；保留空单元格。 |
+| 表格列错位 | block parser | iOS table nodes：`src/ios/Agent/Markdown/MinisMarkdownParser.swift:180-225`；Android `splitTableRow`：`src/android/app/src/main/java/com/openminis/app/ui/markdown/MarkdownParser.kt:298-328` | 不要用未考虑 link 括号的 <code>split(&quot;&#124;&quot;)</code>；保留空单元格。 |
 | 复制缺少后半段 | selection registry/range mapping | iOS copy：`src/ios/Views/Chat/SelectableMarkdownView.swift:5022-5195`；Android shards：`src/android/app/src/main/java/com/openminis/app/ui/chat/MinisTextKitSelection.kt:214-390` | 不要只读取当前可见 Text；复制操作必须走全局 range。 |
 | 工具 sheet 打开卡顿 | reveal window | iOS chunks：`src/ios/Views/Chat/ToolLiveSheet.swift:1240-1340`；Android lazy reveal：`src/android/app/src/main/java/com/openminis/app/ui/chat/ChatToolDetailUI.kt:1379-1538` | 不要在 bottom sheet 首帧构造完整 stdout；先显示摘要和有限批次。 |
 | 切字号后截断/重叠 | font generation/cache invalidation | iOS font notification：`src/ios/Shared/FontSettings.swift:1-8`；Android Typography：`src/android/app/src/main/java/com/openminis/app/ui/theme/Theme.kt:119-178` | 不要只更新颜色或 TextStyle；清理 layout、attributed、math 结果。 |
@@ -10356,7 +10356,7 @@ make install
 
 **FFmpeg。** `deps/build_ffmpeg.sh:29-35` 把源码和 iOS 构建目录分别放到 `deps/ffmpeg-6.1.2` 与 `deps/ffmpeg-6.1.2/build-ios`；脚本注释 `deps/build_ffmpeg.sh:5-26` 声明最终输出是多个 per-library framework 和一个 umbrella `FFmpeg.framework`。关键依赖探测在 `deps/build_ffmpeg.sh:204-216`：只有检测到 `deps/lame-build/lib/libmp3lame.a` 才追加 `--enable-libmp3lame`，否则只是警告并继续。这就是顺序坑：先运行 FFmpeg 不会必然失败，但 MP3 编码会被静默省掉；`BUILDING.md:86-107` 和 `BUILDING.md:207-215` 将此作为显式故障排查项。
 
-FFmpeg 配置在 `deps/build_ffmpeg.sh:218-254`：iOS arm64、VideoToolbox 硬件编解码、`--enable-shared`、禁用静态库/程序/文档，并限定协议和 demuxer；没有 `--enable-gpl`/`--enable-nonfree`，与 `BUILDING.md:100-103` 的 LGPL 约束一致。`deps/build_ffmpeg.sh:263-271` 先 `make` 再 `make install`，`deps/build_ffmpeg.sh:346-372` 从 install 目录收集六个 dylib，`deps/build_ffmpeg.sh:374-436` 逐个生成 `libavcodec.framework` 等 framework，修正 `@rpath` 和 inter-library 引用。`
+FFmpeg 配置在 `deps/build_ffmpeg.sh:218-254`：iOS arm64、VideoToolbox 硬件编解码、`--enable-shared`、禁用静态库/程序/文档，并限定协议和 demuxer；没有 `--enable-gpl`/`--enable-nonfree`，与 `BUILDING.md:100-103` 的 LGPL 约束一致。`deps/build_ffmpeg.sh:263-271` 先 `make` 再 `make install`，`deps/build_ffmpeg.sh:346-372` 从 install 目录收集六个 dylib，`deps/build_ffmpeg.sh:374-436` 逐个生成 `libavcodec.framework` 等 framework，修正 `@rpath` 和 inter-library 引用。
 
 最终 umbrella 的链接与符号修正位于 `deps/build_ffmpeg.sh:439-475`：用 `-force_load` 把 `libfftools.a` 纳入，re-export 六个库，并链接 VideoToolbox/CoreMedia 等系统框架；`deps/build_ffmpeg.sh:486-520` 生成头文件，明确把原始 `main` 改成 `ffmpeg_main`，另提供 `ffmpeg_reset_statics`，避免 App 入口符号冲突且支持多次调用。产物目录由 `deps/build_ffmpeg.sh:24-26` 固定为 `deps/frameworks/`。
 

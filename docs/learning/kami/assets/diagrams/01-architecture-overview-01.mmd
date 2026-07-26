@@ -1,0 +1,11 @@
+flowchart LR
+    ui["UI 层\nSwiftUI / Compose"] --> core["Agent 核心层\n会话状态 + Agent loop"]
+    core --> provider["Provider 层\n模型配置 + SSE"]
+    core --> tools["工具层\nfile / shell / browser / memory"]
+    tools --> sandbox["沙箱层\niSH / PRoot + rootfs"]
+    tools --> system["系统集成层\nNative Offload / Android offload"]
+    core --> persistence["持久化层\nSQLite / Room / 文件"]
+    sandbox --> persistence
+    system --> persistence
+    sync["同步与生命周期\niCloud / FGS / background"] --> core
+    sync --> persistence

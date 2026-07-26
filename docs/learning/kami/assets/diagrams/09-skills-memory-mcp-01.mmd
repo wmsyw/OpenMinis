@@ -1,0 +1,20 @@
+flowchart TD
+    U[用户请求] --> P[构建 system prompt]
+    P --> S[SoulStore.identitySection<br/>身份与风格]
+    P --> M[SkillStore / SkillRepository<br/>筛选已启用技能]
+    M --> MD[只注入 name description path<br/>最多 20 条元数据]
+    P --> MC[MCPStore / MCPRepository<br/>筛选已启用服务器]
+    MC --> MCMD[只注入服务器名与 note<br/>最多 20 条]
+    P --> MEM{当前会话 memoryEnabled?}
+    MEM -->|是| MG[GLOBAL.md + 最近最多 3 个日期日志]
+    MEM -->|否| MX[明确的 disabled 说明]
+    U --> LLM[模型选择技能或服务器]
+    MD --> LLM
+    MCMD --> LLM
+    MG --> LLM
+    MX --> LLM
+    LLM -->|file_read SKILL.md| BODY[加载 Skill 正文]
+    BODY -->|shell_execute| RES[脚本 / references / assets]
+    LLM -->|minis-mcp-cli tools| DISC[远端 tools/list]
+    DISC -->|minis-mcp-cli call| TOOL[远端 tools/call]
+    LLM -->|memory_get / memory_write| LOG[查询或追加记忆文件]

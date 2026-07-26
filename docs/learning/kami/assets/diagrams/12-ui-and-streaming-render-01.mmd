@@ -1,0 +1,13 @@
+flowchart TD
+    token["SSE / stream delta"] --> append["append to active message"]
+    append --> side["stable prefix + live tail"]
+    side --> sample["adaptive throttle / coalescing"]
+    sample --> parse["parse only safe work for this tick"]
+    parse --> blocks["stable markdown blocks"]
+    blocks --> list["native recycled list"]
+    list --> scroll["auto-follow or user-browsing"]
+    parse --> math["math scheduler / WebView or native"]
+    math --> blocks
+    blocks --> select["TextKit or Compose selection shards"]
+    append --> final["stream end: final flush and commit"]
+    final --> parse

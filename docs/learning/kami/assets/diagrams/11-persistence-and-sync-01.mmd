@@ -1,0 +1,17 @@
+flowchart LR
+    ui["Agent UI / agent loop"] --> model["RawMessage + ContentPart"]
+    model --> local["Local DB row + external file"]
+    local --> dirty["sync_dirty_records"]
+    dirty --> core["SyncCore"]
+    core --> portable["PortableRecord"]
+    portable --> cloud["iCloud fixed zones"]
+    portable --> lan["LANTransport skeleton"]
+    cloud --> inbound["SyncInboundBatch"]
+    inbound --> conflict{"Conflict policy"}
+    conflict --> lww["updatedAt record LWW"]
+    conflict --> custom["special union / CRDT merger"]
+    conflict --> deletion["hard delete + resurrection guard"]
+    lww --> hydrate["ChatStore / Provider DB hydrator"]
+    custom --> hydrate
+    deletion --> hydrate
+    hydrate --> local

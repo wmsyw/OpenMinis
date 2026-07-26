@@ -9,6 +9,8 @@
 | **[`OpenMinis-Agent-App-Engineering.md`](OpenMinis-Agent-App-Engineering.md)** | 可渲染的总目录、阅读路线与章节导航 | 推荐 |
 | [`parts/`](parts/) | 18 个独立章节，单章约 23–91 KB | 推荐 |
 | `OpenMinis-Agent-App-Engineering-full.md` | 18 章合并归档，约 1.25 MB | 不推荐；下载后本地阅读 |
+| [`kami/OpenMinis-Agent-App-Engineering.html`](kami/OpenMinis-Agent-App-Engineering.html) | Kami 排版的完整交互式 HTML 单文件，内嵌字体、图表与代码高亮 | 推荐；浏览器阅读 |
+| [`kami/OpenMinis-Agent-App-Engineering.pdf`](kami/OpenMinis-Agent-App-Engineering.pdf) | Kami 排版的 457 页 PDF，适合离线阅读与打印 | 推荐；离线阅读 |
 | `header.md` | 完整归档的标题页和内部目录 | — |
 
 原先把 18 章全部放进 `OpenMinis-Agent-App-Engineering.md`。文件达到 1.25 MB 后，部分代码托管平台超过 Markdown 渲染阈值，会退化成纯文本预览，表现为标题、表格和段落全挤在一起。现在总入口保持在约 5 KB，只链接独立章节；完整单文件仅作为离线归档。

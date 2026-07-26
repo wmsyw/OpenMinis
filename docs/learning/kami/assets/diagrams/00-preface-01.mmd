@@ -1,0 +1,28 @@
+flowchart TB
+  P0["0. 序章"] --> P1["1. 整体架构与分层"]
+  P1 --> CORE["核心三章"]
+  subgraph CORE["核心：agent 是怎么跑起来的"]
+    direction LR
+    P2["2. Agent 核心循环"] --> P3["3. 上下文工程"]
+    P3 --> P4["4. Provider 抽象与认证"]
+  end
+  CORE --> CAP["能力面：agent 能干什么"]
+  subgraph CAP["能力面"]
+    direction LR
+    P5["5. 工具系统"] --> P6["6. iOS 沙箱 iSH"]
+    P5 --> P7["7. Android 沙箱 PRoot"]
+    P6 --> P8["8. Native Offload"]
+    P7 --> P8
+    P8 --> P9["9. Skills/Soul/Memory/MCP"]
+    P9 --> P10["10. 浏览器自动化"]
+  end
+  CAP --> INFRA["工程面：怎么长久活着"]
+  subgraph INFRA["工程面"]
+    direction LR
+    P11["11. 持久化与同步"] --> P12["12. UI 与流式渲染"]
+    P12 --> P13["13. 系统集成"]
+    P13 --> P14["14. 语音与多媒体"]
+    P14 --> P15["15. 构建/调试/可观测"]
+  end
+  INFRA --> P16["16. 跨平台移植：抽到桌面端"]
+  P16 --> P17["17. 从零开始的实施路线图"]

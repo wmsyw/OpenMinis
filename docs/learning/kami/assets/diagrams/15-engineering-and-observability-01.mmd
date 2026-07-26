@@ -1,0 +1,23 @@
+flowchart TD
+  clone["git clone --recurse-submodules"] --> ishsrc["deps/ish submodule"]
+  clone --> prootsrc["deps/proot submodule"]
+  lameSrc["LAME 3.100 tarball"] --> lame["deps/build_lame.sh"]
+  lame --> lameOut["deps/lame-build/lib/libmp3lame.a + headers"]
+  lameOut --> ffmpeg["deps/build_ffmpeg.sh"]
+  ffSrc["FFmpeg 6.1.2 tarball"] --> ffmpeg
+  ffmpeg --> ffOut["deps/frameworks/*.framework"]
+  ishsrc --> ish["deps/build_ish.sh"]
+  ish --> ishOut["deps/libs + include + resources"]
+  ishsrc --> fakefs["deps/prepare_alpine_rootfs.sh"]
+  alpineIsh["Alpine aarch64 minirootfs"] --> fakefs
+  fakefs --> ishRoot["deps/resources/alpine-rootfs.zip"]
+  prootsrc --> proot["deps/build_proot.sh"]
+  talloc["vendored talloc.c"] --> proot
+  proot --> prootOut["Android assets + jniLibs"]
+  alpineAndroid["Alpine minirootfs / Termux package"] --> androidPrep["scripts/prepare_android_sandbox.sh"]
+  androidPrep --> androidAssets["src/android/app/src/main/assets"]
+  ffOut --> iosApp["Xcode Minis target"]
+  ishOut --> iosApp
+  ishRoot --> iosApp
+  prootOut --> androidApp["Gradle :app"]
+  androidAssets --> androidApp

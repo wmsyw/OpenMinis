@@ -1,0 +1,21 @@
+flowchart TD
+    model["模型发出 tool call"] --> repair["JSON 修复与必填预检"]
+    repair --> valid{"工具名和参数有效？"}
+    valid -- "否" --> invalid["合成 isError tool_result"]
+    valid -- "是" --> dispatch["按工具名分发"]
+    dispatch --> shell{"shell_execute 命中原生 offload？"}
+    shell -- "否" --> execute["执行文件、浏览器或记忆工具"]
+    shell -- "是" --> permission{"BYPASS / ASK / DENY"}
+    permission -- "NOT_ALLOWED 或会话拒绝" --> denied["permission_denied 结果"]
+    permission -- "ASK_ONCE" --> confirm["用户确认或系统权限流程"]
+    confirm -- "拒绝或超时" --> denied
+    confirm -- "允许" --> execute
+    permission -- "BYPASS" --> execute
+    execute --> result["ToolExecutionResult / AgentContentPart.ToolResult"]
+    result --> budget{"超长或图片预算超限？"}
+    budget -- "是" --> offload["落盘、占位符、minis:// 引用"]
+    budget -- "否" --> feed["加入 user tool_result"]
+    offload --> feed
+    invalid --> feed
+    denied --> feed
+    feed --> next["下一轮 provider 请求"]

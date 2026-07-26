@@ -1,0 +1,35 @@
+flowchart TB
+  subgraph L1["L1 纯逻辑层 · 可直接移植"]
+    direction LR
+    A1["Provider 协议与 wire 转换"]
+    A2["消息/内容块数据模型"]
+    A3["上下文策略与压缩算法"]
+    A4["token 估算 BPETokenizer"]
+    A5["工具 schema 与分发"]
+    A6["bashism 规则匹配"]
+    A7["ToolLoopDetector"]
+    A8["OAuth PKCE 状态机"]
+    A9["ANSI 解析与终端缓冲"]
+  end
+  subgraph L2["L2 能力抽象层 · 换实现不换接口"]
+    direction LR
+    B1["沙箱执行 ExecutionCoordinator"]
+    B2["持久化 ChatStore"]
+    B3["网络与 SSE"]
+    B4["密钥存储"]
+    B5["浏览器驱动"]
+    B6["ASR / TTS"]
+    B7["文件系统与挂载"]
+  end
+  subgraph L3["L3 平台绑定层 · 必须重写"]
+    direction LR
+    C1["UI 全部"]
+    C2["Native Offload 全部"]
+    C3["后台执行与保活"]
+    C4["系统集成 Intents/Share/FileProvider"]
+    C5["权限模型"]
+    C6["打包/签名/分发"]
+  end
+  L1 --> L2 --> L3
+  L3 -.->|"回调"| L2
+  L2 -.->|"回调"| L1

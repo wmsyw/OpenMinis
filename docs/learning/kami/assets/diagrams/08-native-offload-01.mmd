@@ -1,0 +1,16 @@
+flowchart TD
+    G["Guest shell: android-calendar/apple-calendar"] --> S["PATH 命中同名 stub"]
+    S --> E["execve(handler, argv, envp)"]
+    E --> I["iOS iSH native-offload: 进程内拦截"]
+    E --> P["Android PRoot native_offload extension"]
+    I --> IH["ObjC handler + iOS Framework"]
+    IH --> IP["stdout/stderr fd 写 JSON 或文本"]
+    P --> W["abstract Unix socket native-offload"]
+    W --> AS["NativeOffloadServer 校验 magic/version/长度"]
+    AS --> AH["按 basename 查 NativeOffloadHandler"]
+    AH --> AF["Android framework / Kotlin manager"]
+    AF --> T["rootfs/tmp/.native-offload-pid-seq"]
+    T --> R["返回 NOFR + exit_code + guest tmp path"]
+    R --> C["PRoot 改写为 /bin/cat tmpfile"]
+    IP --> O["guest 读取 stdout"]
+    C --> O

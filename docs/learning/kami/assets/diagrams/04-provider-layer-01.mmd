@@ -1,0 +1,10 @@
+flowchart TD
+    UI["Chat UI / Agent loop"] --> Entry["ModelEntry"]
+    Entry --> Router["ModelGroupRouter"]
+    Router --> Factory["ProviderFactory"]
+    Factory --> Canonical["AgentMessage + AgentToolDefinition"]
+    Canonical --> Wire["Provider wire request"]
+    Wire --> SSE["SSE or streamed JSON"]
+    SSE --> Events["AgentStreamEvent / LLMStreamChunk"]
+    Events --> Loop["Tool execution and next turn"]
+    Loop --> Router

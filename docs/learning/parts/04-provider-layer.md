@@ -389,7 +389,7 @@ Gemini 的 `contents[].parts[]` 是 protobuf oneof，空字符串不是一个有
 
 | 问题 | Provider 边界的修复 | 依据 |
 |---|---|---|
-| Responses id 含 `|`，Anthropic 不接受 | 出站 Anthropic 统一 `sanitizeToolId` | `src/android/app/src/main/java/com/openminis/app/provider/anthropic/AnthropicProvider.kt:560-569`、`src/ios/Providers/AgentProvider.swift:5-12` |
+| Responses id 含 <code>&#124;</code>，Anthropic 不接受 | 出站 Anthropic 统一 `sanitizeToolId` | `src/android/app/src/main/java/com/openminis/app/provider/anthropic/AnthropicProvider.kt:560-569`、`src/ios/Providers/AgentProvider.swift:5-12` |
 | tool_use 没有结果 | 复制消息后注入 synthetic error tool_result | `src/ios/Providers/Anthropic/AnthropicAgentProvider.swift:535-587` |
 | orphan tool_result | 仅保留最近 assistant 声明过的 id | `src/android/app/src/main/java/com/openminis/app/provider/anthropic/AnthropicProvider.kt:430-483` |
 | Chat tool reply 顺序错误 | 收集所有 tool reply，再紧跟 assistant.tool_calls 重排 | `src/ios/Providers/OpenAI/OpenAIAgentProvider.swift:1377-1435` |
@@ -483,18 +483,18 @@ Claude OAuth 与 xAI OAuth 都是 loopback redirect + authorization code + PKCE�
 ```mermaid
 sequenceDiagram
     participant App as "Minis App"
-    participant Loop as "Local callback server"
+    participant Callback as "Local callback server"
     participant Browser as "Safari or Custom Tab"
     participant Auth as "Claude/xAI authorization"
     participant Token as "Token endpoint"
     participant Store as "Keychain or EncryptedPrefs"
     App->>App: "Generate verifier, S256 challenge, state"
-    App->>Loop: "Bind fixed loopback port and callback"
+    App->>Callback: "Bind fixed loopback port and callback"
     App->>Browser: "Open authorize URL with challenge and state"
     Browser->>Auth: "User signs in and approves"
     Auth-->>Browser: "Redirect code and state to loopback"
-    Browser->>Loop: "GET /callback?code=...&state=..."
-    Loop-->>App: "Resume callback continuation"
+    Browser->>Callback: "GET /callback?code=...&state=..."
+    Callback-->>App: "Resume callback continuation"
     App->>App: "Reject state mismatch"
     App->>Token: "POST code, redirect_uri, verifier"
     Token-->>App: "access_token, refresh_token, expires_in"

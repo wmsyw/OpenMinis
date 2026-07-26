@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    actor User as "用户"
+    participant UI as "iOS View / Android Compose"
+    participant VM as "AIChatViewModel / ChatViewModel"
+    participant Store as "ChatStore / ChatRepository"
+    participant Provider as "AgentProvider / LLMProvider"
+    participant SSE as "Provider SSE endpoint"
+    participant Tool as "工具 dispatcher"
+    participant Sandbox as "iSH / PRoot"
+    participant Offload as "Native Offload / Android handler"
+
+    User->>UI: 输入文字、图片或文件
+    UI->>VM: send() / sendMessage(text)
+    VM->>Store: ensure session + append user message
+    VM->>Provider: 构造 provider + system + tools + history
+    Provider->>SSE: 发起 streaming request
+    SSE-->>VM: text / thinking / tool-use / usage / finished
+    VM-->>UI: 增量更新 assistant bubble 与 tool block
+    alt 没有工具调用
+        VM->>Store: 持久化 assistant turn
+        VM-->>UI: 完成渲染，清除 streaming
+    else 有工具调用
+        VM->>Tool: preflight + loop detector + execute
+        alt shell 或 file 工具
+            Tool->>Sandbox: shell / file path
+            Sandbox-->>Tool: stdout、stderr、文件结果
+        else 设备能力工具
+            Tool->>Offload: guest CLI / socket handler
+            Offload-->>Tool: capability result + exit code
+        end
+        Tool-->>VM: tool result + status
+        VM->>Store: assistant tool-use + tool-result
+        VM->>Provider: 带 tool result 的下一轮 history
+        Provider->>SSE: 再次 streaming request
+        SSE-->>VM: 最终 text 或新的 tool-use
+        VM-->>UI: 继续增量渲染
+        VM->>Store: 持久化最终 assistant turn
+    end

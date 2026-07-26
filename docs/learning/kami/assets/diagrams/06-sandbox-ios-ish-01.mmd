@@ -1,0 +1,8 @@
+flowchart TD
+    app["iOS App 进程"] --> boot["ISHKernel.bootWithRootPath"]
+    boot --> fake["mount_root(fakefs, data)"]
+    fake --> pid1["become_first_process: guest PID 1"]
+    pid1 --> dev["/dev + /proc + /dev/pts"]
+    dev --> engine["Asbestos ARM64 guest 执行"]
+    engine --> signal["JIT fault recovery / guest thread parking"]
+    engine --> userland["Alpine aarch64 用户态"]

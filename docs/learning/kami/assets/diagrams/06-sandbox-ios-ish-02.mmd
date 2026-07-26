@@ -1,0 +1,42 @@
+sequenceDiagram
+    participant model as "Agent 模型"
+    participant tool as "shell_execute"
+    participant vm as "AIChatViewModel.executeCommand"
+    participant bash as "BashismDetector / OnDemandBash"
+    participant ring as "ShellCommandRingBuffer"
+    participant coord as "ISHExecutionCoordinator"
+    participant exec as "ISHShellExecutor"
+    participant kernel as "ISHKernel / iSH task"
+    participant guest as "Alpine /bin/sh + Asbestos"
+    participant ui as "Tool result / Terminal UI"
+
+    model->>tool: "command + timeout"
+    tool->>vm: "executeCommand(command)"
+    vm->>bash: "detect and optional ensureBash"
+    bash-->>vm: "runRaw or runViaBash"
+    vm->>ring: "didStart(command, sessionId)"
+    vm->>coord: "execute(sessionId, command, timeout)"
+    coord->>coord: "context(sessionId), static mounts"
+    coord->>exec: "executeExecutable(/bin/sh, stdinData, fsContext)"
+    exec->>kernel: "new child + fd 0/1/2 pipes"
+    kernel->>guest: "do_execve then task_start"
+    guest-->>exec: "stdout/stderr bytes"
+    exec-->>coord: "lineCallback + completion result"
+    coord-->>vm: "stdout + stderr + exitCode"
+    vm->>ring: "didExit(index, exitCode)"
+    vm->>vm: "CR fold, ANSI strip, head/tail truncate"
+    vm-->>tool: "clean tool result"
+    tool-->>ui: "stream lines and final content"
+
+    opt interactive_terminal
+        ui->>kernel: "executeCommand(/bin/sh -l)"
+        kernel->>kernel: "pty_open_fake + /dev/pts + winsize"
+        ui->>kernel: "sendInput / setTerminalSize"
+        kernel-->>ui: "TTY outputCallback bytes"
+    end
+
+    alt timeout_or_user_stop
+        coord->>exec: "killProcessGroup(pid)"
+        exec->>kernel: "SIGTERM then delayed SIGKILL"
+        kernel-->>vm: "exitCode -1 / cancelled marker"
+    end
