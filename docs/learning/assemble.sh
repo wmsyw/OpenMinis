@@ -1,10 +1,12 @@
 #!/bin/sh
-# Assemble docs/learning/parts/*.md into the single master document.
+# Assemble docs/learning/parts/*.md into the downloadable full archive.
+# The readable online entry point is OpenMinis-Agent-App-Engineering.md;
+# do not overwrite it — a 1.25 MB Markdown file exceeds hosted preview limits.
 # Regenerate after editing any part: sh docs/learning/assemble.sh
 set -eu
 
 cd "$(dirname "$0")"
-OUT=OpenMinis-Agent-App-Engineering.md
+OUT=OpenMinis-Agent-App-Engineering-full.md
 PARTS=parts
 
 [ -d "$PARTS" ] || { echo "missing $PARTS/" >&2; exit 1; }

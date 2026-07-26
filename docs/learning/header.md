@@ -2,12 +2,12 @@
 
 ## ——以 OpenMinis 为样本的移动端 Agent 工程手册
 
-> 本文档由对 [OpenMinis](https://github.com/OpenMinis/OpenMinis) 源码的逆向工程研究整理而成。
-> 研究对象：iOS (Swift/SwiftUI, ~187k 行) + Android (Kotlin/Compose, ~154k 行) 双端原生实现。
-> 仓库快照日期：2026-07-26。
+> **完整单文件归档**：约 1.25 MB，供下载、全文搜索和本地 Markdown 阅读器使用。
+> 在线代码托管平台可能因文件过大而退化为纯文本预览；在线阅读请返回
+> [`OpenMinis-Agent-App-Engineering.md`](OpenMinis-Agent-App-Engineering.md)，按章节打开。
 >
-> 每一条技术论断均标注真实文件路径与行号区间。未直接观察到而由代码推导的结论标注 `[推断]`。
-> 本文档不修改被研究仓库的任何源码。
+> 研究对象：iOS (Swift/SwiftUI, ~187k 行) + Android (Kotlin/Compose, ~154k 行) 双端原生实现。
+> 仓库快照日期：2026-07-26。每条技术论断标注真实源码路径与行号；推导结论标注 `[推断]`。
 
 ---
 
