@@ -226,7 +226,7 @@ private let logger = AppLogger(category: "ModelUseOffload")
             do {
                 return try await operation()
             } catch let error as LLMError {
-                guard case .transientError(let message) = error,
+                guard case .transientError(let message, _) = error,
                       attempt < maxRetries,
                       canRetry() else { throw error }
                 attempt += 1
@@ -247,7 +247,18 @@ private let logger = AppLogger(category: "ModelUseOffload")
                                        temperature: Double,
                                        outputHostPath: String?,
                                        streamFd: Int32,
+                                       fsContext: UInt64,
                                        completion: @escaping ([String: Any]?, String?) -> Void) {
+        // [T-offload-caller-session] The chat whose shell ran this command,
+        // from the calling task's fs_context (read by the ObjC handler on its
+        // guest thread). Used for the provider's session header and for where
+        // generated media is saved. It was mountedSessionIdSnapshot — the chat
+        // that started a shell command last — so with several chats running,
+        // images landed in another chat's attachments and the returned
+        // minis:// link pointed at a file the caller does not have. Same root
+        // cause as the browser crosstalk fix (T-browser-pool-caller-session).
+        let caller = ISHExecutionCoordinator.callerSessionId(fsContext: fsContext)
+        logger.info("[ModelUse] run caller=\(caller.sid?.prefix(8) ?? "nil") via=\(caller.source)")
         Task {
             do {
                 let result = try await performRun(
@@ -258,7 +269,8 @@ private let logger = AppLogger(category: "ModelUseOffload")
                     maxTokens: maxTokens,
                     temperature: temperature,
                     outputHostPath: outputHostPath,
-                    streamFd: streamFd
+                    streamFd: streamFd,
+                    callerSid: caller.sid
                 )
                 completion(result, nil)
             } catch {
@@ -297,7 +309,7 @@ private let logger = AppLogger(category: "ModelUseOffload")
             """
         case .unsupported:
             return ""
-        case .openAI, .openAIResponses, .openRouter, .xAI, .kimiCode:
+        case .openAI, .openAIResponses, .openRouter, .xAI, .kimiCode, .githubCopilot:
             return """
             Hint — \(entry.model.displayName) is an OpenAI-compatible image model. Use the same \
             messages format as text models: put the prompt in the user message and image params \
@@ -342,10 +354,20 @@ private let logger = AppLogger(category: "ModelUseOffload")
                                     maxTokens: Int,
                                     temperature: Double,
                                     outputHostPath: String?,
-                                    streamFd: Int32) async throws -> [String: Any] {
+                                    streamFd: Int32,
+                                    callerSid: String?) async throws -> [String: Any] {
         // 1. Resolve model entry
         let entry = try await resolveModelEntry(modelIdOrName, providerFilter: providerFilter)
-        let provider = try await LLMProviderFactory.makeProvider(for: entry)
+        // [T-opencode-session-header] A model_use call runs on behalf of the
+        // conversation whose shell invoked it; that session is already the
+        // source of truth elsewhere in this file (callerSid), so reuse it so an
+        // OpenCode request from a tool shares its parent conversation's id
+        // rather than silently omitting the header.
+        let provider = try await LLMProviderFactory.makeProvider(
+            for: entry,
+            // [T-opencode-every-entry] Outside any chat (no caller session) it
+            // is a one-off conversation rather than a request with no id.
+            sessionId: OpenCodeChannel.normalizedSessionId(callerSid) ?? OpenCodeChannel.oneOffSessionId())
 
         // [T-model-use-passthrough-mode] Explicit passthrough envelope — the
         // raw-mode escape hatch. Parsed before message validation because
@@ -555,8 +577,10 @@ private let logger = AppLogger(category: "ModelUseOffload")
             let cliEndpointPreview = Self.parseEndpointOverride(inputJSON)?.rawValue ?? "<none>"
             logger.info("[ModelUseRoute] DECISION-INPUTS model=\(entry.model.id) modalities=[\(modalityList.joined(separator: ","))] instance=\(instance?.label ?? "<nil>") instanceCred=\(instance?.credentialType.rawValue ?? "<nil>") image_endpoint_mode=\(endpointModeStr) image_endpoint_resolved=\(endpointResolvedStr) cliEndpointOverride=\(cliEndpointPreview) providerIsOAuth=\(openAI.isOAuth) codexAccountIdPresent=\(openAI.codexAccountId != nil) customBaseURL=\(openAI.customBaseURL ?? "<nil>") forceResponsesAPI=\(openAI.forceResponsesAPI)")
 
-            // Codex OAuth image generation — STRICTLY scoped to the gpt-image-2
-            // model so this is a pure additive branch with zero regression on
+            // Codex OAuth image generation — STRICTLY scoped to the Codex OAuth
+            // image models (gpt-image-2 and the 2.5 variants; see
+            // LLMModel.allCodexOAuthImageModelIDs)
+            // so this is a pure additive branch with zero regression on
             // normal OpenAI OAuth chat/responses flows (those models lack
             // .imageOutput and never reach this block anyway; the explicit
             // model-id gate makes the intent unambiguous). Generates via the
@@ -573,7 +597,10 @@ private let logger = AppLogger(category: "ModelUseOffload")
             // back to the (wrong) Images API path. Codex backend tolerates a
             // missing Chatgpt-Account-Id header, so any OAuth instance is
             // routed to codex for this model.
-            let isCodexImage = entry.model.id == LLMModel.gptImage2.id
+            // [T-codex-gpt-image25-variants] Membership test rather than a
+            // single-id compare, so the 2.5 variants route exactly like
+            // gpt-image-2 does.
+            let isCodexImage = LLMModel.allCodexOAuthImageModelIDs.contains(entry.model.id)
                 && openAI.isOAuth
                 && openAI.customBaseURL == nil
                 && !openAI.forceResponsesAPI
@@ -591,13 +618,20 @@ private let logger = AppLogger(category: "ModelUseOffload")
                     prompt: prompt,
                     inputImages: inputImages,
                     topLevelModel: topModel,
+                    // [T-codex-gpt-image25-variants] Pass the selected image
+                    // model explicitly. It would default to the provider's bound
+                    // `model.id` (the same value today), but naming it here keeps
+                    // the tool object tied to the entry the user picked rather
+                    // than to however the provider happens to be constructed.
+                    imageModel: entry.model.id,
                     size: imgConfig.size,
                     quality: imgConfig.quality
                 )
                 return Self.attachCallFeedback(try Self.buildMediaResult(
                     response: response, entry: entry,
                     outputHostPath: outputHostPath, outputExt: outputExt0,
-                    imageEndpointUsed: nil
+                    imageEndpointUsed: nil,
+                    callerSid: callerSid
                 ), warnings: callWarnings, extras: appliedExtras)
             }
 
@@ -652,7 +686,8 @@ private let logger = AppLogger(category: "ModelUseOffload")
                 return Self.attachCallFeedback(try Self.buildMediaResult(
                     response: response, entry: entry,
                     outputHostPath: outputHostPath, outputExt: outputExt0,
-                    imageEndpointUsed: .imagesGenerations
+                    imageEndpointUsed: .imagesGenerations,
+                    callerSid: callerSid
                 ), warnings: callWarnings, extras: appliedExtras)
             }
 
@@ -680,7 +715,8 @@ private let logger = AppLogger(category: "ModelUseOffload")
                     return try Self.buildMediaResult(
                         response: response, entry: entry,
                         outputHostPath: outputHostPath, outputExt: outputExt0,
-                        imageEndpointUsed: .imagesGenerations
+                        imageEndpointUsed: .imagesGenerations,
+                        callerSid: callerSid
                     )
                 } catch let LLMError.providerError(message) where Self.looksLikeEndpointMissing(message) {
                     logger.info("🖼️ /images/generations rejected (\(message.prefix(120))) — falling back to /chat/completions")
@@ -795,7 +831,7 @@ private let logger = AppLogger(category: "ModelUseOffload")
             // is racy under concurrent sessions (symlink target can change
             // mid-write when another session's view appears).
             var mediaFiles: [[String: Any]] = []
-            let callerSid = ISHExecutionCoordinator.mountedSessionIdSnapshot ?? ""
+            let callerSid = callerSid ?? ""
             let attachDir: String
             if !callerSid.isEmpty {
                 attachDir = AIChatViewModel.minisAttachmentsPersistentDir(for: callerSid).path
@@ -1606,13 +1642,14 @@ private let logger = AppLogger(category: "ModelUseOffload")
         entry: ModelEntry,
         outputHostPath: String?,
         outputExt: String,
-        imageEndpointUsed: ImageEndpointMode? = nil
+        imageEndpointUsed: ImageEndpointMode? = nil,
+        callerSid: String?
     ) throws -> [String: Any] {
         let outputIsStructured = ["json", "yaml", "yml"].contains(outputExt)
         let outputIsMedia = Self.isMediaExtension(outputExt)
 
         var mediaFiles: [[String: Any]] = []
-        let callerSid2 = ISHExecutionCoordinator.mountedSessionIdSnapshot ?? ""
+        let callerSid2 = callerSid ?? ""
         let attachDir: String
         if !callerSid2.isEmpty {
             attachDir = AIChatViewModel.minisAttachmentsPersistentDir(for: callerSid2).path

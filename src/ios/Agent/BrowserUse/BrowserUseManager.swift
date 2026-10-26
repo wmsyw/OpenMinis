@@ -60,6 +60,34 @@ final class BrowserUseManager: NSObject, ObservableObject {
     /// so WebContent-process death can be attributed to a tab. [BrowserToolDiag]
     var tabIdProvider: (() -> Int?)?
 
+    /// [T-ios-js-dialogs-256] JS dialogs this tab intercepted but did not show.
+    /// Drained into the next tool result so the model learns the page tried to
+    /// open one. Per-tab because the manager is per-tab; in-memory only, like
+    /// the other diagnostics on this class.
+    private(set) var pendingDialogEvents: [InterceptedDialog] = []
+
+    /// A single `alert()` / `confirm()` / `prompt()` the agent browser answered
+    /// with a default instead of showing.
+    struct InterceptedDialog {
+        enum Kind: String { case alert, confirm, prompt }
+        let kind: Kind
+        let message: String
+        let defaultText: String?
+        let pageURL: String?
+        /// The value handed back to the page, rendered for the model.
+        let defaultResponse: String
+    }
+
+    /// Cap on retained dialog records. A page can call `alert()` in a loop, and
+    /// this queue only drains when a tool result is produced — without a bound
+    /// an adversarial (or merely buggy) page could grow it without limit. Once
+    /// full the OLDEST are dropped and the drained report says how many, which
+    /// keeps the most recent dialogs (the ones the agent is likely acting on).
+    private static let maxPendingDialogEvents = 20
+
+    /// Number of records discarded because the queue was full, since last drain.
+    private var droppedDialogEvents = 0
+
     /// Destination host URLs of in-flight downloads keyed by download identity.
     private var downloadDestinations: [ObjectIdentifier: URL] = [:]
 
@@ -108,6 +136,10 @@ final class BrowserUseManager: NSObject, ObservableObject {
         webView.uiDelegate = self
         registerPrintHandler(on: webView)
     }
+
+    /// The user-agent string this tab's page requests are sent with. Lets the
+    /// pool rebuild the tab at another viewport without changing its UA.
+    var effectiveUserAgent: String? { webView.customUserAgent }
 
     /// Init with a pre-built configuration (used for window.open popups that share the opener's session).
     init(profile: UserAgentProfile, customString: String?, configuration: WKWebViewConfiguration,
@@ -299,7 +331,12 @@ final class BrowserUseManager: NSObject, ObservableObject {
         case .getReadable:
             return try await getReadable()
         case .setUserAgent:
-            return setUserAgent(profile: input.userAgent)
+            // Normally answered by BrowserTabPool before it gets here; kept
+            // exhaustive, and equally unwilling to guess a profile.
+            guard let profile = input.userAgent else {
+                return .error(UserAgentProfile.invalidArgumentMessage(raw: input.userAgentRaw))
+            }
+            return setUserAgent(profile: profile)
         case .setViewport:
             // Routed by BrowserTabPool.execute — pool mutates all tabs; this
             // path only hits if execute is called directly on a detached manager.
@@ -914,7 +951,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
         logger.info("[ScreenshotTiming] takeSnapshot elapsed=\(takeSnapMs)ms")
         lastScreenshot = image
 
-        guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
+        guard let jpegData = Self.screenshotJPEGData(image) else {
             return .error("Failed to encode screenshot as JPEG")
         }
 
@@ -944,6 +981,20 @@ final class BrowserUseManager: NSObject, ObservableObject {
     }
 
     /// Collect viewport and page metadata for screenshot results.
+    // [T-image-seams] Moved verbatim out of screenshot() / viewportMetadata() so
+    // tests run the exact encoder setting and metadata line. No behaviour change.
+
+    /// The JPEG the screenshot action returns and writes.
+    nonisolated static func screenshotJPEGData(_ image: UIImage) -> Data? {
+        image.jpegData(compressionQuality: 0.8)
+    }
+
+    /// The `Image:` line of the screenshot metadata. `imageSize` is whatever the
+    /// caller passes — today the snapshot's `UIImage.size`, i.e. points (P-i9).
+    nonisolated static func screenshotImageLine(imageSize: CGSize, fileSize: Int) -> String {
+        "  Image: \(Int(imageSize.width))x\(Int(imageSize.height)) (\(fileSize / 1024)KB)"
+    }
+
     private func viewportMetadata(
         imageSize: CGSize,
         fileSize: Int,
@@ -972,7 +1023,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
         lines.append("Screenshot captured")
         lines.append("  URL: \(url)")
         if !title.isEmpty { lines.append("  Title: \(title)") }
-        lines.append("  Image: \(Int(imageSize.width))x\(Int(imageSize.height)) (\(fileSize / 1024)KB)")
+        lines.append(Self.screenshotImageLine(imageSize: imageSize, fileSize: fileSize))
         lines.append("  Viewport: \(vp.width)x\(vp.height)")
         if pageW > 0 || pageH > 0 {
             lines.append("  Page size: \(pageW)x\(pageH)")
@@ -1046,7 +1097,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
             }
             return BrowserActionResult(text: String(describing: raw ?? "null"))
         } catch {
-            return .error("JavaScript error: \(error.localizedDescription)")
+            return .error(BrowserJSErrorFormatter.message(error))
         }
     }
 
@@ -1069,7 +1120,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
             }
             return BrowserActionResult(text: String(describing: raw ?? "null"))
         } catch {
-            return .error("JavaScript error: \(error.localizedDescription)")
+            return .error(BrowserJSErrorFormatter.message(error))
         }
     }
 
@@ -1091,7 +1142,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
             }
             return BrowserActionResult(text: String(describing: raw ?? "null"))
         } catch {
-            return .error("JavaScript error: \(error.localizedDescription)")
+            return .error(BrowserJSErrorFormatter.message(error))
         }
     }
 
@@ -1114,7 +1165,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
             }
             return BrowserActionResult(text: String(describing: raw ?? "null"))
         } catch {
-            return .error("JavaScript error: \(error.localizedDescription)")
+            return .error(BrowserJSErrorFormatter.message(error))
         }
     }
 
@@ -1452,10 +1503,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
             logger.warning("[ExecJS] timeout after \(Int(Self.executeJSTimeout))s — script pinned the JS thread or returned a non-settling promise")
             return .error("JavaScript timed out after \(Int(Self.executeJSTimeout))s. The script may be blocking the page's main thread or awaiting a promise that never settles. Simplify the script, or split long work into smaller calls.")
         } catch {
-            let nsError = error as NSError
-            let detail = nsError.userInfo["WKJavaScriptExceptionMessage"] as? String
-                ?? error.localizedDescription
-            return .error("JavaScript error: \(detail)")
+            return .error(BrowserJSErrorFormatter.message(error))
         }
     }
 
@@ -1600,7 +1648,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
             }
             return BrowserActionResult(text: Self.formatBackboneResult(json))
         } catch {
-            return .error("JavaScript error: \(error.localizedDescription)")
+            return .error(BrowserJSErrorFormatter.message(error))
         }
     }
 
@@ -1818,8 +1866,8 @@ final class BrowserUseManager: NSObject, ObservableObject {
     // MARK: - Set User Agent
 
     @discardableResult
-    func setUserAgent(profile: UserAgentProfile?, customString: String? = nil) -> BrowserActionResult {
-        let newProfile = profile ?? .mobileSafari
+    func setUserAgent(profile: UserAgentProfile, customString: String? = nil) -> BrowserActionResult {
+        let newProfile = profile
 
         currentProfile = newProfile
         // Preserve the current viewport across UA switches so a user-set
@@ -2006,10 +2054,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
             // WKError.javaScriptExceptionOccurred only says "A JavaScript
             // exception occurred" in localizedDescription; the actual JS error
             // message is in the "WKJavaScriptExceptionMessage" userInfo key.
-            let nsError = error as NSError
-            let detail = nsError.userInfo["WKJavaScriptExceptionMessage"] as? String
-                ?? error.localizedDescription
-            return .error("JavaScript error: \(detail)")
+            return .error(BrowserJSErrorFormatter.message(error))
         }
     }
 
@@ -2592,6 +2637,78 @@ extension BrowserUseManager: WKDownloadDelegate {
     }
 }
 
+// MARK: - Intercepted JS dialogs (agent browser)
+
+extension BrowserUseManager {
+    /// Record a dialog that was answered with a default instead of shown.
+    fileprivate func recordInterceptedDialog(kind: InterceptedDialog.Kind,
+                                             message: String,
+                                             defaultText: String?,
+                                             defaultResponse: String) {
+        if pendingDialogEvents.count >= Self.maxPendingDialogEvents {
+            pendingDialogEvents.removeFirst()
+            droppedDialogEvents += 1
+        }
+        pendingDialogEvents.append(InterceptedDialog(
+            kind: kind,
+            message: message,
+            defaultText: defaultText,
+            pageURL: currentURL.isEmpty ? nil : currentURL,
+            defaultResponse: defaultResponse
+        ))
+        logger.info("[JSDialog] intercepted \(kind.rawValue) on \(self.currentURL) — answered \(defaultResponse)")
+    }
+
+    /// Drain the queue into a block of text for the model, or nil if empty.
+    /// Draining clears it so the same dialog is reported exactly once.
+    ///
+    /// Known limitation: the queue only drains when a tool result is produced
+    /// for this tab. If the agent triggers a dialog and then makes no further
+    /// browser call for the rest of the turn, the records are never reported —
+    /// they simply die with the tab. This is deliberately not defended against:
+    /// the memory is bounded (see maxPendingDialogEvents) so nothing leaks, and
+    /// the interception is already written to the log at record time, so the
+    /// only thing lost is a report nobody was going to read. A timer that fired
+    /// on an idle queue would have no tool result to attach to and could only
+    /// log what was logged already. The one case where the loss DID matter —
+    /// the tab being destroyed by the dead-tab path, taking an explanation of
+    /// the wedge with it — is handled at that call site in BrowserTabPool.
+    func drainInterceptedDialogReport() -> String? {
+        guard !pendingDialogEvents.isEmpty else { return nil }
+        let events = pendingDialogEvents
+        let dropped = droppedDialogEvents
+        pendingDialogEvents.removeAll()
+        droppedDialogEvents = 0
+
+        var lines: [String] = []
+        for e in events {
+            var line = "- \(e.kind.rawValue)(): \"\(e.message)\""
+            if let d = e.defaultText, !d.isEmpty { line += " [default text: \"\(d)\"]" }
+            if let u = e.pageURL { line += " on \(u)" }
+            line += " — page received `\(e.defaultResponse)`"
+            lines.append(line)
+        }
+        if dropped > 0 {
+            lines.append("- (\(dropped) earlier dialog\(dropped == 1 ? "" : "s") dropped; only the most recent \(Self.maxPendingDialogEvents) are kept)")
+        }
+
+        let plural = events.count == 1 ? "a dialog" : "\(events.count) dialogs"
+        return """
+        [Browser Dialog Intercepted] The page tried to show \(plural), which was \
+        NOT shown to the user — this is headless automation and cannot wait for \
+        human input. The page was given the default response shown below and \
+        continued running.
+        \(lines.joined(separator: "\n"))
+        If you need a different outcome, use execute_js to drive the page's \
+        DOM/JS state directly instead of relying on native dialogs (for example \
+        override window.confirm before triggering the action).
+
+        [Original tool result below]
+
+        """ + "\n"   // blank line so the original result starts cleanly below
+    }
+}
+
 // MARK: - WKUIDelegate (target="_blank" / window.open)
 
 extension BrowserUseManager: WKUIDelegate {
@@ -2620,6 +2737,51 @@ extension BrowserUseManager: WKUIDelegate {
         Task { @MainActor in
             self.closeHandler?(webView)
         }
+    }
+
+    // MARK: JS dialogs — intercepted, never presented
+    //
+    // [T-ios-js-dialogs-256] The agent browser runs unattended, so a real modal
+    // waiting on a human tap would hang the agent loop indefinitely — strictly
+    // worse than the silent-swallow this fixes. Instead each dialog is answered
+    // immediately with a conservative default and recorded; the next tool result
+    // for this tab carries the record back to the model, which can then decide
+    // what to do (typically execute_js to drive the page directly).
+    //
+    // Defaults match what WebKit already did with no delegate installed, so
+    // page behaviour is unchanged — the only difference is that the model now
+    // finds out it happened. confirm() answers false deliberately: the agent
+    // must not silently consent on the user's behalf to whatever was asked.
+    //
+    // The user-facing web preview does the opposite and shows real dialogs;
+    // see WebPreviewSheet's WKUIDelegate.
+
+    func webView(_ webView: WKWebView,
+                 runJavaScriptAlertPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping () -> Void) {
+        recordInterceptedDialog(kind: .alert, message: message,
+                                defaultText: nil, defaultResponse: "(dismissed)")
+        completionHandler()
+    }
+
+    func webView(_ webView: WKWebView,
+                 runJavaScriptConfirmPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping (Bool) -> Void) {
+        recordInterceptedDialog(kind: .confirm, message: message,
+                                defaultText: nil, defaultResponse: "false")
+        completionHandler(false)
+    }
+
+    func webView(_ webView: WKWebView,
+                 runJavaScriptTextInputPanelWithPrompt prompt: String,
+                 defaultText: String?,
+                 initiatedByFrame frame: WKFrameInfo,
+                 completionHandler: @escaping (String?) -> Void) {
+        recordInterceptedDialog(kind: .prompt, message: prompt,
+                                defaultText: defaultText, defaultResponse: "null")
+        completionHandler(nil)
     }
 }
 
@@ -2675,12 +2837,23 @@ final class MinisURLSchemeHandler: NSObject, WKURLSchemeHandler {
         }
 
         let mimeType = Self.mimeType(for: fileURL.pathExtension)
-        let response = URLResponse(
+        // [T-ios-minis-fetch-status-zero] Must be an HTTPURLResponse, not a bare
+        // URLResponse. A plain URLResponse carries no status code, so JS running
+        // in a minis:// page saw `response.status === 0` and `response.ok ===
+        // false` from fetch() even though the bytes arrived fine — the resource
+        // loaded, but any code that checked `res.ok` before using it bailed out.
+        // The charset rides in Content-Type here; HTTPURLResponse derives
+        // textEncodingName from that header rather than taking it separately.
+        let contentType = mimeType.hasPrefix("text/") ? "\(mimeType); charset=utf-8" : mimeType
+        let response = HTTPURLResponse(
             url: url,
-            mimeType: mimeType,
-            expectedContentLength: data.count,
-            textEncodingName: mimeType.hasPrefix("text/") ? "utf-8" : nil
-        )
+            statusCode: 200,
+            httpVersion: "HTTP/1.1",
+            headerFields: [
+                "Content-Type": contentType,
+                "Content-Length": "\(data.count)"
+            ]
+        )!
         urlSchemeTask.didReceive(response)
         urlSchemeTask.didReceive(data)
         urlSchemeTask.didFinish()

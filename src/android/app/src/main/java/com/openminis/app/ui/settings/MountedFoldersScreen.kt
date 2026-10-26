@@ -72,6 +72,7 @@ import com.openminis.app.R
 import com.openminis.app.data.MountedFoldersStore
 import com.openminis.app.data.SafMountHelper
 import com.openminis.app.ui.components.DialogTextField
+import com.openminis.app.ui.components.safeLaunchPicker
 import kotlinx.coroutines.launch
 import com.openminis.app.i18n.uppercaseForDisplay
 
@@ -349,7 +350,19 @@ fun MountedFoldersScreen(
             confirmButton = {
                 MinisTextButton(onClick = {
                     showPickerIntro = false
-                    pickerLauncher.launch(initialPickerUri())
+                    // [T-android-mount-picker-anf] OpenDocumentTree fires
+                    // ACTION_OPEN_DOCUMENT_TREE, and some OEM ROMs ship without a
+                    // resolvable DocumentsUI (field crash: OnePlus 8T / ColorOS,
+                    // ActivityNotFoundException straight out of
+                    // startActivityForResult). safeLaunchPicker catches it and
+                    // tells the user instead of dying; it deliberately does NOT
+                    // pre-check with resolveActivity (see its doc).
+                    pickerLauncher.safeLaunchPicker(
+                        initialPickerUri(),
+                        context,
+                        "MountedFolders",
+                        R.string.mount_picker_unavailable,
+                    )
                 }) {
                     Text(stringResource(R.string.mount_picker_intro_continue))
                 }

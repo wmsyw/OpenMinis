@@ -2,7 +2,9 @@ package com.openminis.app.ui.sessions
 
 import com.openminis.app.data.db.ChatSessionEntity
 import com.openminis.app.data.db.FolderEntity
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -26,11 +28,11 @@ class GroupRunningRingTest {
             id = id, modelId = "m", createdAt = 0, updatedAt = 0, folderId = folderId,
         )
 
-    private fun blocksFor(active: Set<String>, collapsed: Set<String> = setOf("a")) =
+    private fun blocksFor(active: Set<String>, expanded: String? = "b") =
         partitionByFolder(
             sessions = listOf(session("s1", "a"), session("s2", "a"), session("s3", "b")),
             folders = listOf(folder("a"), folder("b")),
-            collapsedIds = collapsed,
+            expandedFolderId = expanded,
             activeSessionIds = active,
         ).first
 
@@ -62,7 +64,7 @@ class GroupRunningRingTest {
         // The flag is pure data; the collapsed-only rule is a RENDER decision,
         // so an expanded group still reports it. Keeping the two separate means
         // expanding a group can't drop the state.
-        val expanded = blocksFor(active = setOf("s1"), collapsed = emptySet())
+        val expanded = blocksFor(active = setOf("s1"), expanded = "a")
         assertTrue(expanded.first { it.folder.id == "a" }.anyActive)
     }
 
@@ -82,8 +84,43 @@ class GroupRunningRingTest {
         val blocks = partitionByFolder(
             sessions = listOf(session("s1", "a")),
             folders = listOf(folder("a")),
-            collapsedIds = setOf("a"),
+            expandedFolderId = null,
         ).first
         assertFalse(blocks.single().anyActive)
+    }
+
+    // --- [UI-261023-03] The comet's colour --------------------------------
+
+    private fun member(id: String, updatedAt: Long, category: String, parent: String? = null) =
+        ChatSessionEntity(
+            id = id, modelId = "m", createdAt = 0, updatedAt = updatedAt,
+            category = category, folderId = "a", parentSessionId = parent,
+        )
+
+    private fun activeCategoryOf(sessions: List<ChatSessionEntity>, active: Set<String>) =
+        partitionByFolder(
+            sessions = sessions,
+            folders = listOf(folder("a")),
+            expandedFolderId = null,
+            activeSessionIds = active,
+        ).first.single().activeCategory
+
+    @Test
+    fun `the comet takes the newest working member's category`() {
+        val members = listOf(member("old", 1, "code"), member("new", 9, "health"), member("idle", 20, "math"))
+        assertEquals("health", activeCategoryOf(members, active = setOf("old", "new")))
+        assertEquals("code", activeCategoryOf(members, active = setOf("old")))
+    }
+
+    @Test
+    fun `a working chat wins over a newer working sub agent`() {
+        val members = listOf(member("p", 1, "writing"), member("child", 9, "research", parent = "p"))
+        assertEquals("writing", activeCategoryOf(members, active = setOf("p", "child")))
+        assertEquals("research", activeCategoryOf(members, active = setOf("child")))
+    }
+
+    @Test
+    fun `no working member, no comet colour`() {
+        assertNull(activeCategoryOf(listOf(member("a1", 1, "code")), active = emptySet()))
     }
 }

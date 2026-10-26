@@ -505,6 +505,27 @@ class WebAppActivity : ComponentActivity() {
             .build()
 
         webView.webViewClient = object : WebViewClient() {
+            // [T-net-android-phase3] Settings > Network: answer the local entry's
+            // proxy challenge (WebViewNetworkProxy); any other auth request as before.
+            override fun onReceivedHttpAuthRequest(view: android.webkit.WebView?, handler: android.webkit.HttpAuthHandler?, host: String?, realm: String?) {
+                if (handler != null && com.openminis.app.network.WebViewNetworkProxy.answerAuth(handler, host, realm, view?.url)) return
+                super.onReceivedHttpAuthRequest(view, handler, host, realm)
+            }
+
+            // [T-android-webview-render-process-gone] (GH#341) This Activity IS
+            // the WebView — there is no other content to fall back to, so a
+            // dead renderer means finishing rather than leaving the user on a
+            // blank screen with no way to tell what happened.
+            override fun onRenderProcessGone(
+                view: WebView?,
+                detail: android.webkit.RenderProcessGoneDetail?,
+            ): Boolean {
+                val handled = com.openminis.app.ui.webview.WebViewRenderProcess
+                    .handle("WebAppActivity", detail)
+                runCatching { finish() }
+                return handled
+            }
+
             override fun shouldInterceptRequest(
                 view: WebView,
                 request: WebResourceRequest,

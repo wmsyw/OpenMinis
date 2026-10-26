@@ -350,16 +350,28 @@ class MainActivity : ComponentActivity() {
         // Bridge: in-app "open settings" dialog. Used for already-denied
         // runtime permissions AND for special-access capabilities like
         // Notification Access.
+        //
+        // [T-settings-gate-stale-dialog] The dialog lives exactly as long as its
+        // request: when the request times out (5 min) or another one takes
+        // its place, the shown dialog is dismissed, and an answer is only
+        // taken for the request it was shown for.
         lifecycleScope.launch {
+            var shown: AlertDialog? = null
             OffloadPermissionManager.pendingSettingsGate
-                .filterNotNull()
                 .collect { gate ->
-                    AlertDialog.Builder(this@MainActivity)
+                    shown?.dismiss()
+                    shown = null
+                    if (gate == null) return@collect
+                    shown = AlertDialog.Builder(this@MainActivity)
                         .setTitle(gate.title)
                         .setMessage(gate.message)
                         .setCancelable(false)
                         .setPositiveButton(gate.positiveLabel) { d, _ ->
                             d.dismiss()
+                            if (!OffloadPermissionManager.respondToSettingsGate(
+                                    gate, OffloadPermissionManager.SettingsGateDecision.OPEN,
+                                )
+                            ) return@setPositiveButton
                             val intent = Intent(gate.settingsAction).apply {
                                 if (gate.requiresPackageUri) {
                                     data = Uri.fromParts("package", packageName, null)
@@ -372,14 +384,11 @@ class MainActivity : ComponentActivity() {
                                 // Some OEMs don't expose every settings panel.
                                 // Fall through — the polling loop will time out.
                             }
-                            OffloadPermissionManager.respondToSettingsGate(
-                                OffloadPermissionManager.SettingsGateDecision.OPEN
-                            )
                         }
                         .setNegativeButton(gate.negativeLabel) { d, _ ->
                             d.dismiss()
                             OffloadPermissionManager.respondToSettingsGate(
-                                OffloadPermissionManager.SettingsGateDecision.CANCEL
+                                gate, OffloadPermissionManager.SettingsGateDecision.CANCEL,
                             )
                         }
                         .show()
@@ -486,7 +495,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // Register for debug screenshot capture (debug builds only)
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.DEV_TOOLS) {
             com.openminis.app.debug.DebugRPCHandler.currentActivity = java.lang.ref.WeakReference(this)
         }
 
@@ -568,6 +577,10 @@ class MainActivity : ComponentActivity() {
                 DisposableEffect(navController) {
                     val job = lifecycleScope.launch {
                         navController.currentBackStackEntryFlow.collect { entry ->
+                            // [T-android-hang-caller-attribution] Let a stall
+                            // sample name the screen it happened on.
+                            com.openminis.app.diagnostics.HangDetector.noteScreen(entry.destination.route)
+                            com.openminis.app.diagnostics.JankDiag.setScreen(entry.destination.route)
                             val isChatRoute = entry.destination.route == Routes.CHAT
                             val sid = entry.arguments?.getString("sessionId").takeIf { isChatRoute }
                             val previous = currentChatSessionId
@@ -604,6 +617,10 @@ class MainActivity : ComponentActivity() {
                 // agent triggers a change. Mirrors iOS MinisApp.swift
                 // root-level `.sheet(item: gate.pending)`.
                 com.openminis.app.ui.settings.ConfigConfirmDialogHost()
+
+                // [FEAT-261021-05] A proxy or Tailscale that keeps failing:
+                // a floating banner over every screen (iOS ContentView).
+                com.openminis.app.ui.settings.NetworkAlertBannerHost(navController)
             }
         }
     }
@@ -670,11 +687,21 @@ class MainActivity : ComponentActivity() {
     /**
      * Apply (or release) the activity window's `FLAG_KEEP_SCREEN_ON` based on
      * the user's "Keep Screen Awake" toggle and whether any session has an
-     * active task right now. Idempotent — flipping with the same desired
-     * state is a no-op at the WindowManager level.
+     * active task right now.
+     *
+     * [T-android-orientation-user] (OpenMinis#401) Touch the window only when
+     * the flag actually changes. `Window.addFlags` / `clearFlags` are NOT
+     * no-ops when the flag is already in that state: both go through
+     * `setFlags`, which always dispatches a window-attributes change — a
+     * relayout round trip to the WindowManager. This runs on every
+     * activeSessions emission (each task start and stop, per session), and
+     * each of those redundant updates was a chance for the system to
+     * re-evaluate rotation; on OnePlus / Android 16 that rotated the screen
+     * against a portrait lock.
      */
     private fun applyKeepScreenAwakeFlag(hasActiveSession: Boolean) {
         val want = keepScreenAwakeEnabled(this) && hasActiveSession
+        if (!keepScreenOnNeedsChange(window.attributes.flags, want)) return
         if (want) {
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             AppLogger.info("KeepScreenAwake", "screen-on lock acquired (active sessions present)")
@@ -786,4 +813,14 @@ class MainActivity : ComponentActivity() {
             else -> {}
         }
     }
+}
+
+/**
+ * [T-android-orientation-user] (OpenMinis#401) Whether the window's current
+ * [flags] differ from the wanted `FLAG_KEEP_SCREEN_ON` state, i.e. whether
+ * applyKeepScreenAwakeFlag has anything to do.
+ */
+internal fun keepScreenOnNeedsChange(flags: Int, want: Boolean): Boolean {
+    val on = (flags and android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0
+    return on != want
 }

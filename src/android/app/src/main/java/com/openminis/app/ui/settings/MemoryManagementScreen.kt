@@ -278,7 +278,7 @@ private fun MemoryFileRow(
  * onValueChange. Programmatic content changes (paste, IME commit, state
  * restore) don't always route through onValueChange, so Save could fail
  * to appear after a paste until the user typed another key — the exact
- * symptom reported on iOS/macOS (XIN msg 41384). Keeping Save permanently
+ * symptom reported on iOS/macOS. Keeping Save permanently
  * visible removes the dependency entirely; saveFile is idempotent so a
  * no-op Save on unchanged content is harmless.
  */
@@ -344,18 +344,19 @@ fun MemoryFileEditScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Editor
-            DialogTextField(
+            // Editor. [T-android-editor-keyboard-overlap] The caret stays
+            // above the keyboard; see DocumentEditorField.
+            com.openminis.app.ui.components.DocumentEditorField(
                 value = content,
                 onValueChange = {
                     content = it
                 },
-                singleLine = false,
                 textStyle = MaterialTheme.typography.bodySmall.copy(
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                 ),
                 placeholder = stringResource(R.string.memory_editor_placeholder),
-                modifier = Modifier.weight(1f),
+                outlined = true,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
             )
 
             // Footer text

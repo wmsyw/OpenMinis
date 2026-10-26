@@ -531,7 +531,7 @@ fun SelectionDragTracker(
     //    against a new shard → dragIntent updated → another nudge piled
     //    on → handle position visually jumped → user micro-corrected →
     //    new pointer event → repeat. Symptom was "constant jitter + cannot scroll up"
-    //    (TG35696-35699 LeeeSe/𝙓𝙄𝙉).
+    //    (field reports).
     //
     // The tick loop reads the latest dragIntent point each frame
     // independently of pointer events, so a stationary finger inside the
@@ -885,6 +885,12 @@ data class SelectionToolbarActions(
      * half-arrived answer would narrate a truncated text.
      */
     val onReadFromStart: ((String) -> Unit)? = null,
+    /**
+     * [T-multi-select-share] Opens the share picker with the round of the message
+     * that owns the selection preselected (null: a cross-message selection, nothing
+     * preselected). Null hides the action. It is the bar's LAST item, as on iOS.
+     */
+    val onShareChat: ((String?) -> Unit)? = null,
 )
 
 @Composable
@@ -1094,6 +1100,8 @@ fun MinisSelectionToolbarHost(
                     com.openminis.app.R.string.markdown_table_copy_table)
                 val labelCopyTableImage = androidx.compose.ui.res.stringResource(
                     com.openminis.app.R.string.markdown_table_copy_table_image)
+                val labelShareChat = androidx.compose.ui.res.stringResource(
+                    com.openminis.app.R.string.chat_share_share_chat)
 
                 // Actions are collected into a list first so the bar can show a
                 // few and push the rest into an overflow menu. Ordered by how
@@ -1113,6 +1121,20 @@ fun MinisSelectionToolbarHost(
                         }
                         controller.clearSelection()
                     })
+                    // [T-android-selection-add-to-input-first] Add to Chat
+                    // Input comes right after Copy, before Copy Full Text —
+                    // the order iOS's edit menu uses (Copy → Add to Chat Input
+                    // → Copy Full Reply → read aloud). It used to sit after
+                    // read-aloud and so was folded into the "⋯" overflow; the
+                    // bar now keeps up to four actions inline when they fit,
+                    // so read-aloud stays visible too (see inlineCount below).
+                    if (actions?.onAddToInput != null) {
+                        add(SelectionAction(labelAddToInput) {
+                            val text = controller.selectedPlainText()
+                            if (text.isNotEmpty()) actions.onAddToInput.invoke(text)
+                            controller.clearSelection()
+                        })
+                    }
                     // Copy Markdown / Copy Rich Text are ALWAYS offered when the
                     // selection contains rendered text. Earlier we gated them on
                     // resolveSelectionMarkdown() returning non-null, but that hid
@@ -1225,20 +1247,6 @@ fun MinisSelectionToolbarHost(
                             )
                         }
                     }
-                    // Ordered AFTER read-aloud on purpose. Only three actions
-                    // stay on the bar; read-aloud used to be fourth and so was
-                    // permanently stranded in the overflow, which is what the
-                    // user hit ("把朗读也放出来吧"). Both are secondary to Copy,
-                    // but a narration the user cannot find is worse than one
-                    // extra tap for Add to Input, which is also discoverable
-                    // from the composer itself.
-                    if (actions?.onAddToInput != null) {
-                        add(SelectionAction(labelAddToInput) {
-                            val text = controller.selectedPlainText()
-                            if (text.isNotEmpty()) actions.onAddToInput.invoke(text)
-                            controller.clearSelection()
-                        })
-                    }
                     if (tableActions != null) {
                         add(SelectionAction(labelCopyTable) {
                             tableActions.copyTableMarkdown()
@@ -1247,6 +1255,17 @@ fun MinisSelectionToolbarHost(
                         add(SelectionAction(labelCopyTableImage) {
                             tableActions.copyTableImage()
                             controller.clearSelection()
+                        })
+                    }
+                    // [T-multi-select-share] "Share Chat…" is the bar's last item.
+                    if (actions?.onShareChat != null) {
+                        add(SelectionAction(labelShareChat) {
+                            // A selection across two messages preselects the round
+                            // where it starts (iOS: the reply the menu belongs to).
+                            val messageId = controller.singleMessageId()
+                                ?: controller.selection.value?.start?.shard?.messageId
+                            controller.clearSelection()
+                            actions.onShareChat.invoke(messageId)
                         })
                     }
                 }
@@ -1259,7 +1278,25 @@ fun MinisSelectionToolbarHost(
                 // narrow screens, but it was never a good primary answer — an
                 // action reachable only by swiping a 40dp bar is an action most
                 // users never find.
-                val inlineCount = MAX_INLINE_SELECTION_ACTIONS
+                // [T-android-selection-add-to-input-first] As many actions as
+                // FIT, up to MAX_INLINE_SELECTION_ACTIONS: in Chinese Copy ·
+                // Add to Chat Input · Copy Full Text · Read Aloud all fit a
+                // phone-width bar, while German/Russian/French labels are two
+                // to three times longer and would push the "⋯" off the edge.
+                // Each label is measured in the button's own style, plus its
+                // padding and divider, against the capped bar width.
+                val toolbarMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+                val buttonStyle = MaterialTheme.typography.labelLarge
+                val buttonPadPx = with(density) { (14.dp * 2 + 1.dp).toPx() }
+                fun buttonWidth(label: String): Float =
+                    toolbarMeasurer.measure(label, buttonStyle, maxLines = 1, softWrap = false)
+                        .size.width + buttonPadPx
+                val inlineCount = inlineSelectionActionCount(
+                    widths = items.map { buttonWidth(if (it.children.isEmpty()) it.label else it.label + "  ›") },
+                    overflowWidth = buttonWidth("⋯"),
+                    maxWidth = with(density) { maxBarWidth.toPx() },
+                    cap = MAX_INLINE_SELECTION_ACTIONS,
+                )
                 // [T-android-selection-copy-full-inline] Submenu parents may now
                 // sit inline: tapping one opens the same expandable menu the
                 // overflow uses, anchored to its own button.
@@ -1522,11 +1559,32 @@ private class SelectionAction(
 /**
  * How many actions stay on the bar before the rest move into the overflow menu.
  *
- * Three, matching what iOS's edit menu shows before its own chevron. The bar is
+ * Up to four — Copy, Add to Chat Input, Copy Full Text, Read Aloud — and fewer
+ * when the labels do not fit the bar ([inlineSelectionActionCount]). The bar is
  * anchored to a selection the user is looking at, so it has to stay narrow
  * enough not to cover the text it belongs to.
  */
-private const val MAX_INLINE_SELECTION_ACTIONS = 3
+internal const val MAX_INLINE_SELECTION_ACTIONS = 4
+
+/**
+ * [T-android-selection-add-to-input-first] How many leading actions sit on the
+ * bar: the most (at least one, at most [cap]) whose [widths] plus, when any are
+ * left over, the "⋯" button's [overflowWidth] fit in [maxWidth]. Pure so it can
+ * be unit-tested without Compose.
+ */
+internal fun inlineSelectionActionCount(
+    widths: List<Float>,
+    overflowWidth: Float,
+    maxWidth: Float,
+    cap: Int,
+): Int {
+    val limit = minOf(cap, widths.size)
+    for (n in limit downTo 1) {
+        val needed = widths.take(n).sum() + if (n < widths.size) overflowWidth else 0f
+        if (needed <= maxWidth) return n
+    }
+    return minOf(1, widths.size)
+}
 
 @Composable
 private fun MinisToolbarDivider() {

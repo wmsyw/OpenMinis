@@ -22,6 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Lan
+import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Router
+import androidx.compose.material.icons.outlined.VpnLock
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.BugReport
@@ -38,6 +42,8 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Settings
@@ -52,6 +58,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,9 +86,18 @@ fun SettingsScreen(
     onRootfsClick: () -> Unit = {},
     onBackupClick: () -> Unit = {},
     onEnvVarsClick: () -> Unit = {},
+    /** [T-net-android-phase2] Settings › Network › Network Routing. */
+    onNetworkClick: () -> Unit = {},
+    /** [FEAT-261021-04] The other rows of the Network section. */
+    onTailscaleClick: () -> Unit = {},
+    onProxiesClick: () -> Unit = {},
+    onContainerDnsClick: () -> Unit = {},
     onSkillsClick: () -> Unit = {},
     onTerminalClick: () -> Unit = {},
     onMemoryClick: () -> Unit = {},
+    /** [T-p2-agent-settings] Settings › Agents (delegation on/off), below Memory. */
+    onAgentsClick: () -> Unit = {},
+    onAgentToolsClick: () -> Unit = {},
     // [T-mcp-integration-android] MCP Integrations page, listed directly below
     // Memory. Default no-op for callers that haven't wired the route yet.
     onMcpClick: () -> Unit = {},
@@ -173,7 +189,32 @@ fun SettingsScreen(
             }
 
             // -- Agent Runtime --
+            // [T-android-settings-runtime-order] Row order matches iOS
+            // (ContentView.swift, Section "Agent Runtime"): Agent Tools, Sub
+            // Agents, Skills, Soul, Memory, MCP, Environment Variables.
+            //
+            // The order is not alphabetical or historical — it runs from what
+            // the agent may DO (tools, and who it may hand work to) to what it
+            // is made OF (skills, identity, memory) and finally to what it
+            // connects to (MCP, env). Android had grown its own order simply by
+            // appending each row as it landed, which put the two capability
+            // switches in the middle of the identity rows.
             SettingsSection(title = stringResource(R.string.settings_section_agent_runtime)) {
+                // [T-tools-granular-switches] Which optional tools the agent may use.
+                SettingsItem(
+                    icon = Icons.Outlined.Handyman,
+                    iconColor = Color(0xFF5E5CE6),
+                    title = stringResource(R.string.settings_agent_tools),
+                    subtitle = stringResource(R.string.settings_agent_tools_subtitle),
+                    onClick = onAgentToolsClick,
+                )
+                SettingsItem(
+                    icon = Icons.Outlined.Groups,
+                    iconColor = com.openminis.app.ui.chat.HelperAccentStatic,
+                    title = stringResource(R.string.settings_agents),
+                    subtitle = stringResource(R.string.settings_agents_subtitle),
+                    onClick = onAgentsClick,
+                )
                 SettingsItem(
                     icon = Icons.Outlined.Extension,
                     iconColor = Color(0xFF007AFF),
@@ -181,7 +222,7 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_skills_subtitle),
                     onClick = onSkillsClick,
                 )
-                // [T-soul-md] insertion between Skills and Memory per spec.
+                // [T-soul-md] Between Skills and Memory, as on iOS.
                 SettingsItem(
                     icon = Icons.Outlined.AutoAwesome,
                     iconColor = Color(0xFFFF9500),
@@ -196,7 +237,7 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_memory_subtitle),
                     onClick = onMemoryClick,
                 )
-                // [T-mcp-integration-android] MCP Integrations — directly below Memory.
+                // [T-mcp-integration-android] MCP Integrations — below Memory.
                 // [T-android-mcp-icon-distinct] Dashboard (2x2 block grid) instead of
                 // Extension so MCP no longer shares the Skills row's puzzle-piece icon —
                 // the grid reads as "multiple composed blocks/servers". teal unchanged.
@@ -250,6 +291,41 @@ fun SettingsScreen(
                 )
             }
 
+            // -- Network -- [FEAT-261021-04, iOS c77be4fb6] its own section below
+            // Storage: Network Routing, Tailscale, Proxies and the Shell
+            // Container DNS (until now only on the Rootfs page).
+            SettingsSection(title = stringResource(R.string.network_title)) {
+                SettingsItem(
+                    icon = Icons.Outlined.Lan,
+                    iconColor = Color(0xFF007AFF),
+                    title = stringResource(R.string.network_routing_title),
+                    subtitle = null,
+                    onClick = onNetworkClick,
+                )
+                SettingsItem(
+                    icon = Icons.Outlined.VpnLock,
+                    iconColor = Color(0xFF5856D6),
+                    title = stringResource(R.string.network_tailscale),
+                    subtitle = null,
+                    onClick = onTailscaleClick,
+                )
+                SettingsItem(
+                    icon = Icons.Outlined.Router,
+                    iconColor = Color(0xFFFF9500),
+                    title = stringResource(R.string.network_proxies),
+                    subtitle = null,
+                    onClick = onProxiesClick,
+                )
+                SettingsItem(
+                    icon = Icons.Outlined.Dns,
+                    iconColor = Color(0xFF8E8E93),
+                    title = stringResource(R.string.network_container_dns),
+                    subtitle = null,
+                    onClick = onContainerDnsClick,
+                    showDivider = false,
+                )
+            }
+
             // -- Permissions --
             SettingsSection(title = stringResource(R.string.settings_section_permissions)) {
                 SettingsItem(
@@ -291,12 +367,15 @@ fun SettingsScreen(
 
             // -- About --
             SettingsSection(title = stringResource(R.string.settings_section_about)) {
+                // [T-update-channels] The update badge's Settings layer.
+                val updateBadge by com.openminis.app.data.UpdateStateStore.hasUpdateBadge.collectAsState()
                 SettingsItem(
                     icon = Icons.Outlined.Info,
                     iconColor = Color(0xFF007AFF),
                     title = stringResource(R.string.settings_about_minis),
                     subtitle = stringResource(R.string.settings_about_subtitle),
                     onClick = onAboutClick,
+                    badge = updateBadge,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.FrontHand,
@@ -538,6 +617,8 @@ private fun SettingsItem(
     subtitle: String?,
     onClick: () -> Unit,
     showDivider: Boolean = true,
+    // [T-update-channels] A small dot before the chevron.
+    badge: Boolean = false,
 ) {
     Column {
         Row(
@@ -584,6 +665,11 @@ private fun SettingsItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            if (badge) {
+                UpdateBadgeDot()
+                Spacer(Modifier.width(8.dp))
             }
 
             // Chevron

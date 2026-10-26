@@ -45,6 +45,7 @@
 
 // Signal/exception handler — captures crash stacks to disk for next-launch report.
 #import "CrashSignalHandler.h"
+#import "CrashBreadcrumbs.h"
 
 // Safe KVC wrapper — @try/@catch for private WebKit preference keys.
 #import "SafeKVCSetTrue.h"
@@ -60,12 +61,6 @@
 
 // CppJieba Chinese word segmentation (ObjC++ wrapper)
 #import "JiebaWrapper.h"
-
-// Recorder for -[NSConcreteMutableAttributedString attribute:atIndex:
-// effectiveRange:] — captures the last 10 queries into a tiny ring so
-// the HangDetector dump can show what the typesetter was asking about
-// at stall time.
-#import "AttributeQueryRecorder.h"
 
 #endif /* MinisApp_Bridging_Header_h */
 

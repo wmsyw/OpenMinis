@@ -54,6 +54,10 @@ extension Notification.Name {
     static let sessionDidCreate = Notification.Name("sessionDidCreate")
     /// Posted when a session's title or messages are updated.
     static let sessionDidUpdate = Notification.Name("sessionDidUpdate")
+    /// [T-storage-session-cache] Posted after sessions were deleted outside
+    /// the sidebar (Settings › Storage). userInfo: ["ids": [String]]. The
+    /// sidebar drops the rows and closes the conversation if it was open.
+    static let sessionsDeletedElsewhere = Notification.Name("sessionsDeletedElsewhere")
     /// Posted when an agent loop ends on a VM that is not the currently-displayed one.
     /// `object` is the session ID (`String`). Allows the active VM to reload from DB.
     static let sessionAgentLoopDidEnd = Notification.Name("sessionAgentLoopDidEnd")
@@ -128,6 +132,10 @@ struct MinisApp: App {
         //
         // `install` is idempotent, so the later onAppLaunch() call is a no-op.
         CrashSignalHandler.install()
+        // [T-crash-breadcrumbs] Rotate the previous run's breadcrumbs and start
+        // this run's ring + 15 s resource sampling, before anything else runs.
+        CrashBreadcrumbs.start()
+        ResourceSampler.shared.start()
         // [T-auto-grouping-default-on] Auto-grouping ships ON. `bool(forKey:)`
         // returns false for an unregistered key, so the default has to be
         // registered here rather than expressed at the (multiple) read sites —
@@ -151,10 +159,6 @@ struct MinisApp: App {
         // storm that has caused 0x8BADF00D scene-update watchdog kills on
         // markdown tables during streaming.
         NSTextContainerSetSizeGuard.install()
-        // Install the attribute:atIndex:effectiveRange: recorder so the
-        // last 10 typesetter attribute queries land in a ring buffer; the
-        // HangDetector dump path will print them when a stall fires.
-        AttributeQueryRecorder.install()
         // Enable in-app language override for String(localized:) and UIKit strings
         Bundle.enableLanguageOverride()
         let lang = UserDefaults.standard.string(forKey: "appLanguage") ?? ""
@@ -178,7 +182,43 @@ struct MinisApp: App {
         AgentLiveActivityManager.shared.cleanupStaleActivities(source: "MinisApp.init")
         // Start screen-awake controller — it will observe running tasks
         // + the user's opt-in flag and toggle the idle timer accordingly.
-        Task { @MainActor in KeepScreenAwakeController.shared.start() }
+        Task { @MainActor in
+            KeepScreenAwakeController.shared.start()
+            // [T-always-on] Black screen + per-chat lease on top of Keep Screen Awake.
+            AlwaysOnController.shared.start()
+        }
+        // [T-zombie-child-sweep] Retire sub agent sessions whose parent
+        // conversation was truncated away — see sweepZombieChildSessions for
+        // why a month-old floor is what makes this safe against sync ordering.
+        // Cold start only (this init runs once per process) and at background
+        // priority: it competes with nothing, and a zombie that survives one
+        // extra launch costs nothing.
+        Task.detached(priority: .background) {
+            // [T-ios27-scene-create-watchdog] Run the one-shot data migrations
+            // that used to sit inside ChatStore's dispatch_once (the part_flags
+            // backfill and the v1 dirty-row sweep). They are bulk UPDATE/DELETE
+            // over the whole messages / sync_dirty_records tables, and anything
+            // slow inside that once token blocks every later toucher of
+            // ChatStore.shared — including the main thread during scene
+            // creation, which is a 10 s hard kill.
+            //
+            // Ordered before the zombie sweep so the schema is fully settled
+            // before that query runs; both are idempotent and actor-serialised.
+            await ChatStore.shared.runDeferredMigrations()
+            await ChatStore.shared.sweepZombieChildSessions()
+        }
+    }
+
+    /// [T-ios-reboot-keychain-identity-rotation] The sync bootstrap, factored out
+    /// so the launch path and the protected-data-available retry call exactly the
+    /// same thing. Both engines self-guard against double-start.
+    @available(iOS 17.0, *)
+    @MainActor
+    private static func startSyncEngines() async {
+        await SyncV2Bootstrap.startIfEnabled()
+        if !SyncV2Bootstrap.shouldPauseV1() {
+            await CloudSyncEngine.shared.start()
+        }
     }
 
     var body: some Scene {
@@ -386,6 +426,9 @@ struct MinisApp: App {
                     // the old voice-only whitelist, so their text models + shadow
                     // voice rows recover promptly without waiting for a natural refresh.
                     ProviderConfigStore.shared.migrateVoiceModalityIfNeeded()
+                    // [T-tools-granular-switches] Carry the one-round master
+                    // Tools switch forward into the per-tool Agents switch.
+                    AgentToolSwitch.migrateLegacyIfNeeded()
                     // For existing users with no model groups, create a default group silently
                     Task { await ProviderConfigStore.shared.createDefaultGroupIfNeeded() }
                     shareLog.info("[Share] onAppear — checking for pending share")
@@ -394,6 +437,8 @@ struct MinisApp: App {
                     BackgroundKeepAliveManager.shared.setup()
                     // Monitor network changes to keep iSH DNS up to date
                     NetworkMonitor.shared.start()
+                    // [T-provider-quota] Foreground-only upstream quota refresh.
+                    QuotaStore.shared.start()
                     // Register FileProvider domain for shared files
                     Self.registerFileProviderDomain()
                     // Migrate legacy shared dir to App Group container
@@ -417,9 +462,28 @@ struct MinisApp: App {
                     // exactly as before.
                     if #available(iOS 17.0, *) {
                         Task { @MainActor in
-                            await SyncV2Bootstrap.startIfEnabled()
-                            if !SyncV2Bootstrap.shouldPauseV1() {
-                                await CloudSyncEngine.shared.start()
+                            await Self.startSyncEngines()
+                        }
+                        // [T-ios-reboot-keychain-identity-rotation] Retry once
+                        // protected data unlocks.
+                        //
+                        // This `.onAppear` fires when the root view MOUNTS, not on
+                        // every foreground, so it is a one-shot. Both sync
+                        // bootstraps now bail when the device identity is
+                        // provisional (Keychain unreadable on a pre-first-unlock
+                        // reboot relaunch) — without this observer that bail would
+                        // trade a corrupted zone for no sync at all until the user
+                        // force-quit the app.
+                        //
+                        // Both entry points are idempotent (`syncEngine == nil`
+                        // guard in v1; v2's own start flag), so an extra call on a
+                        // healthy launch is a no-op.
+                        NotificationCenter.default.addObserver(
+                            forName: UIApplication.protectedDataDidBecomeAvailableNotification,
+                            object: nil, queue: .main
+                        ) { _ in
+                            Task { @MainActor in
+                                await Self.startSyncEngines()
                             }
                         }
                     }
@@ -486,6 +550,11 @@ struct MinisApp: App {
                 SessionLockStore.shared.evaluateAppLock()
 
                 CrashReporter.shared.onAppLaunch()
+                // [T-resource-diag] Start the 60s port/resource sampler. Cheap
+                // and off the main queue; see ResourceDiagnostics.
+                ResourceDiagnostics.start()
+                // [T-perf-cpu-probe] Periodic flush of the CPU buckets.
+                PerfProbe.start()
                 CrashReporter.shared.updateMarkerPhase(phase: "active")
 
                 _ = SessionBadgeStore.shared
@@ -521,7 +590,9 @@ struct MinisApp: App {
                 debugServer.restartIfDead(port: 8321)
                 #endif
 
-                try? await UNUserNotificationCenter.current().setBadgeCount(0)
+                // [T-mac-dock-badge] Back in the app: notifications posted while
+                // away are seen; the badge keeps only the running-task count.
+                BackgroundKeepAliveManager.shared.clearUnseenBadge()
                 BackgroundInterruptionTracker.shared.checkOnForeground()
                 // [T-shortcuts-diag-and-pending] Scan for AppIntent runs that
                 // were marked pending but never cleared (i.e. the process was
@@ -539,7 +610,17 @@ struct MinisApp: App {
                 // Activity is lingering (soft-finished, awaiting the user), the
                 // user is now back in the app — dismiss it.
                 AgentLiveActivityManager.shared.dismissFinishedActivityOnForeground()
-                SkillStore.shared.reload()
+                // [T-ios-listsessions-perf] Deferred off the first-frame
+                // critical path. SkillStore.reload() → loadSkills() is a
+                // synchronous @MainActor SQLite query PLUS one filesystem read
+                // of SKILL.md per installed skill, and scenePhase becomes
+                // .active while the launch frame is still being built — it
+                // showed up inside the 1.14 s and 0.52 s launch hangs in the
+                // CPU Profiler trace. Nothing drawn in the first frame reads
+                // `skills`: the slash-command menu and the prompt fragment both
+                // consult it later, on demand. A main-queue async hop lets the
+                // frame commit first, then reloads.
+                DispatchQueue.main.async { SkillStore.shared.reload() }
 
                 if #available(iOS 17.0, *) {
                     SkillFilesystemNotifier.shared.drainIfDirtyAsync(reason: "scenePhase active")
@@ -581,6 +662,19 @@ struct MinisApp: App {
             if #available(iOS 17.0, *) {
                 Task { @MainActor in
                     if SyncV2Bootstrap.shouldPauseV1() {
+                        // [T-icloud-device-heartbeat] Re-announce this device on
+                        // every foreground resume so peers see a fresh lastSeen.
+                        // The record was previously written ONCE per process
+                        // lifetime (V2 startup); a Mac app left open for days
+                        // never refreshed it and read as "last seen N days ago".
+                        if !DeviceIdentity.isProvisional {
+                            await ChatStore.shared.markDirty(recordType: "SyncDeviceV2", recordId: DeviceIdentity.deviceId)
+                        }
+                        // [T-copilot-models-refresh-window] Re-check the model-list
+                        // refresh window on every return to the foreground, so a
+                        // model a provider enabled while the app sat open appears
+                        // without waiting for the next cold launch.
+                        ProviderConfigStore.shared.refreshAllModelsIfNeeded()
                         await SyncCore.shared.fetchNow(trigger: .foregroundTimer)
                         await SyncCore.shared.sendNow(trigger: .foregroundTimer)
                     } else {
@@ -720,6 +814,45 @@ struct MinisApp: App {
 
     private static func registerFileProviderDomain() {
         logAppUpdateMarkerForFPTrace()
+
+        // [T-ios-fp-mac-bootcrash] Circuit breaker, NOT a blanket disable.
+        //
+        // On Macs running the iPhone build the appex can die pre-main (SIGILL
+        // at DYLD-STUB$$NSExtensionMain, nothing of ours executing) and
+        // fileproviderd relaunches it in a tight loop. A registered domain is
+        // the only reason it tries, so the only possible defence lives here.
+        //
+        // The blunt version of this — never register on Mac — shipped as
+        // c4669fca4 and was reverted (90803ceb3) for a good reason: Finder
+        // browsing works between bursts, so the extension boots most of the
+        // time and withholding the domain outright would disable a working
+        // feature to silence a crash report. So withhold only for a machine
+        // that has demonstrably failed to boot the appex several launches in a
+        // row, scoped to this executable generation. See FileProviderBootHealth
+        // for the full rationale and the self-healing properties.
+        if FileProviderBootHealth.shouldWithholdRegistration() {
+            lifecycleLog.warning("[FileProvider] withholding domain registration — appex failed to boot \(FileProviderBootHealth.tripThreshold)x in a row on this build (\(FileProviderBootHealth.describe())); removing any existing domain so fileproviderd stops relaunching it")
+            NSFileProviderManager.getDomainsWithCompletionHandler { domains, _ in
+                guard !domains.isEmpty else { return }
+                for d in domains {
+                    // Plain remove(_:) unregisters only — it does not touch the
+                    // App Group data the user's files actually live in.
+                    NSFileProviderManager.remove(d) { err in
+                        if let err {
+                            lifecycleLog.warning("[FileProvider] breaker deregister of \(d.identifier.rawValue) failed: \(err.localizedDescription)")
+                        }
+                    }
+                }
+            }
+            return
+        }
+        // Count this attempt. The appex clears it the moment it boots, so this
+        // only accumulates while launches are actually failing.
+        let pending = FileProviderBootHealth.noteRegistrationAttempt()
+        if pending > 1 {
+            lifecycleLog.warning("[FileProvider] appex has not reported a successful boot since \(pending) registration(s) on this build")
+        }
+
         let root = AIChatViewModel.minisAppGroupRoot
         let fm = FileManager.default
         // Ensure all three subdirectories exist.

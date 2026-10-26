@@ -61,9 +61,20 @@ class ToolResultImageSerializationTest {
             useResponsesAPI = useResponsesAPI,
         )
 
-    /** A history shaped like read_image's: assistant tool_use → tool result with pixels. */
+    /**
+     * A history shaped like read_image's: assistant tool_use → tool result with pixels.
+     *
+     * [T-android-chat-tool-adjacency] The call is part of the fixture: a result
+     * with no call is an orphan both request builders drop (the API 400s on
+     * it), which is not what these tests are about.
+     */
     private fun historyWithToolResultImage(mime: String = "image/jpeg") = listOf(
         LLMMessage(LLMMessage.Role.USER, "look at the chart"),
+        LLMMessage(
+            role = LLMMessage.Role.ASSISTANT,
+            content = "",
+            contentParts = listOf(AgentContentPart.ToolUse(id = "call_abc123", name = "read_image", input = JSONObject())),
+        ),
         LLMMessage(
             role = LLMMessage.Role.USER,
             content = "",
@@ -112,9 +123,12 @@ class ToolResultImageSerializationTest {
             "tool-result pixels must reach the wire as an image_url block; types=$types",
             types.contains("image_url"),
         )
+        // [T-android-image-upload-format] The fixture is a PNG declared as
+        // image/jpeg. The wire label now follows the BYTES, because DeepSeek
+        // rejects a data URL whose MIME does not match its content.
         assertTrue(
-            "the base64 payload must actually be inlined",
-            body.toString().contains("data:image/jpeg;base64,"),
+            "the base64 payload must actually be inlined, labeled by its real format",
+            body.toString().contains("data:image/png;base64,"),
         )
     }
 
@@ -189,8 +203,11 @@ class ToolResultImageSerializationTest {
     @Test
     fun `responses api emits an input_image block for a tool-result image`() {
         // The Responses path is a separate builder, not a flag on buildRequestBody.
+        // [T-android-responses-orphan-tool-output] The fixture carries the
+        // call: a result with no call is an orphan the Responses request drops.
+        val history = historyWithToolResultImage()
         val body = provider(visionModel, useResponsesAPI = true).buildResponsesAPIBody(
-            messages = historyWithToolResultImage(),
+            messages = history,
             systemPrompt = null,
             maxTokens = 1024,
             stream = false,

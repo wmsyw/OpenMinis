@@ -54,6 +54,16 @@ struct ThinkingResolveContext {
     /// envelope costs at most a thinking toggle that doesn't take, while sending it to a
     /// vendor that doesn't know the field fails the whole request.
     var isDashScope: Bool = false
+    /// [T-ios-cerebras-reasoning-400] Endpoint is Cerebras (OpenMinis#361).
+    ///
+    /// Same shape of problem as `isDashScope` and for the same reason: the
+    /// `*qwen*` rule matches on the model NAME, and Cerebras re-hosts
+    /// `qwen-3.8-27b`. Qwen's native `enable_thinking` is not accepted there —
+    /// their control is root `reasoning_effort`, which the bundled models-dev
+    /// catalog already declares for both Cerebras models.
+    ///
+    /// Defaults false so every other endpoint resolves exactly as before.
+    var isCerebras: Bool = false
     /// The vendor's documented off tier, or nil to omit the field when thinking is off.
     /// Already an ALLOWLIST decision made by `explicitOffEffort` (ff60c818).
     var offEffort: String?
@@ -205,8 +215,7 @@ enum ThinkingRuleResolver {
 
     // MARK: - Built-in registry
 
-    /// The vendor rules, in priority order. Each entry names the evidence it encodes;
-    /// see `/tmp/thinking_rules_evidence.md` §A for the full chain.
+    /// The vendor rules, in priority order. Each entry names the evidence it encodes.
     ///
     /// Order matters and is not alphabetical — the most specific predicate must be
     /// consulted first. Mistral leads because its rule is a total prohibition that
@@ -224,6 +233,41 @@ enum ThinkingRuleResolver {
                 wireFormat: .omitEverything,
                 reasoningEcho: ReasoningEchoPolicy(fieldName: "reasoning_content", timing: .never),
                 label: "mistral-official"
+            ))
+        }
+
+        // Cerebras — OpenMinis#361. Endpoint-scoped, and it must sit ABOVE the
+        // `*qwen*` rule further down: stage A stops at the first scope match,
+        // and Cerebras re-hosts `qwen-3.8-27b`, which would otherwise be handed
+        // Qwen's native `enable_thinking` (a field Cerebras does not accept).
+        // Their documented control is root `reasoning_effort` — and the bundled
+        // models-dev catalog already declares exactly that for both Cerebras
+        // models (`gpt-oss-120b`, `qwen-3.8-27b`), so this rule makes the app
+        // agree with data it already ships rather than inventing a shape.
+        //
+        // This is the same class of fix as [T-ios-qwen-extra-body-400], which
+        // split the qwen rule by endpoint after a strict relay rejected
+        // `extra_body`: a model-NAME pattern cannot answer a question about the
+        // ENDPOINT, so the endpoint gets its own rule above it.
+        //
+        // ORDER: registered here (after Mistral, before OpenRouter) as a NEW
+        // rule — no existing rule is moved. The note below about order being
+        // load-bearing describes a real regression caused by hoisting an
+        // existing rule; adding a narrowly-scoped one that only exists when
+        // `ctx.isCerebras` leaves every other endpoint's resolution untouched.
+        //
+        // `reasoningEcho: .never` records the intent and matches Mistral's
+        // entry. Note it is NOT what suppresses the echo today — no consumer
+        // reads the policy yet; `OpenAIAgentProvider`'s `forbidReasoningField`
+        // does that. Written here so the rule states the whole contract, and so
+        // it starts working for free if/when the policy is wired up.
+        if ctx.isCerebras {
+            rules.append(ThinkingRule(
+                kind: .officialVendor,
+                scope: .allModels,
+                wireFormat: .reasoningEffort(offValue: ctx.offEffort),
+                reasoningEcho: ReasoningEchoPolicy(fieldName: "reasoning_content", timing: .never),
+                label: "cerebras-official"
             ))
         }
 
@@ -324,6 +368,31 @@ enum ThinkingRuleResolver {
             wireFormat: .deepSeekSibling,
             reasoningEcho: ReasoningEchoPolicy(fieldName: "reasoning_content", timing: .afterToolUseOnly),
             label: "deepseek-v4-official"
+        ))
+        // [T-deepseek-flash-scope] GH#356. DeepSeek now recommends the bare
+        // `deepseek-flash`; `deepseek-v4-flash` is kept only as a legacy alias
+        // and both are served by the same DeepSeek-V4.1-Flash. The pattern
+        // above needs the literal "deepseek-v4", so the new id matched NOTHING
+        // and fell through to the generic `reasoning_effort` default — the
+        // wrong wire shape for this vendor.
+        //
+        // `ThinkingRule.scope` is a single pattern with no OR, and the house
+        // style is to register a sibling rule rather than widen one; this one
+        // carries the same wireFormat / echo policy / label family as its
+        // neighbour so the two are obviously one decision.
+        //
+        // `deepseek-flash*` rather than `*deepseek-flash*` or `*deepseek*`:
+        // anchored at the start it still picks up future sub-variants like
+        // `deepseek-flash-lite`, without claiming a future DeepSeek model whose
+        // wire format may differ (`deepseek-chat`, `deepseek-reasoner` and
+        // `deepseek-v4-pro` all correctly stay out — verified against the glob
+        // implementation, not assumed).
+        rules.append(ThinkingRule(
+            kind: .officialVendor,
+            scope: .modelPattern("deepseek-flash*"),
+            wireFormat: .deepSeekSibling,
+            reasoningEcho: ReasoningEchoPolicy(fieldName: "reasoning_content", timing: .afterToolUseOnly),
+            label: "deepseek-flash-official"
         ))
 
         // Fallback for the providerType: generic root reasoning_effort, subject to the
@@ -781,17 +850,15 @@ enum ThinkingRuleResolver {
     ///
     ///   `["effort": "<tier>"]`      → adaptive thinking (Claude 4.6+)
     ///   `["budget_tokens": N]`      → legacy budget thinking (≤4.5)
-    ///   `["disabled": true]`        → adaptive model with thinking OFF; must be sent
-    ///                                 explicitly because those models think by DEFAULT
-    ///                                 when no thinking field is present, which burns a
-    ///                                 small max_tokens entirely on thinking and returns
-    ///                                 empty text. Claude 4.6-4.x ONLY — see
-    ///                                 `modelAcceptsExplicitThinkingDisabled`.
-    ///   `[:]`                       → send nothing. Correct for legacy models (OFF is
-    ///                                 their default) AND for Claude 5+, which rejects
-    ///                                 `thinking.type.disabled` outright and defaults to
-    ///                                 adaptive when the field is absent.
-    ///                                 [T-ios-claude5-thinking-disabled-400]
+    ///   `["disabled": true]`        → thinking OFF on an adaptive model (4.6+); must be
+    ///                                 stated because an absent field lets those models
+    ///                                 think (on Claude 5 at the model's default effort),
+    ///                                 which burns a small max_tokens on thinking or blows
+    ///                                 a latency budget. This is the INTENT only: the wire
+    ///                                 encoding differs per model (disabled / between_tools
+    ///                                 / adaptive + low) — see `AnthropicProvider.offThinking`.
+    ///   `[:]`                       → send nothing. Legacy models only (<= 4.5), where
+    ///                                 OFF is already the default.
     static func anthropicThinkingShape(
         modelId: String,
         supportsReasoning: Bool?,
@@ -810,13 +877,14 @@ enum ThinkingRuleResolver {
             )
             return budget > 0 ? ["budget_tokens": budget] : [:]
         }
-        // [T-ios-claude5-thinking-disabled-400] Note this is NOT `adaptive`:
-        // that is true for 4.6+ AND 5+, but only 4.6-4.x accepts the explicit
-        // disabled value. Claude 5+ 400s on it and treats an absent field as
-        // adaptive — which is exactly what OFF wants.
-        return AnthropicProvider.modelAcceptsExplicitThinkingDisabled(modelId)
-            ? ["disabled": true]
-            : [:]
+        // [T-claude5-thinking-off] Every adaptive model gets the intent, Claude 5+
+        // included: an absent field is NOT off there (it thinks at the default
+        // effort). Which literal reaches the wire is decided per model in
+        // RequestBodyPatcher.injectThinkingConfig via AnthropicProvider.offThinking,
+        // so Claude 5+ never receives the `disabled` value it 400s on.
+        return AnthropicProvider.offThinking(for: modelId) == .omit
+            ? [:]
+            : ["disabled": true]
     }
 
     /// [T-ios-qwen-extra-body-400] The Qwen thinking budget for this level, already
@@ -928,6 +996,10 @@ enum ThinkingRuleResolver {
                 || base.contains("api.venice.ai"),
             isMistral: base.contains("mistral.ai"),
             isDashScope: base.contains("dashscope"),
+            // [T-ios-cerebras-reasoning-400] Same host test the request path
+            // uses, so a Cerebras provider's settings page lists the rule that
+            // actually governs it.
+            isCerebras: base.contains("cerebras.ai"),
             offEffort: nil, userRules: []
         )
         let all = builtInRules(for: ctx)

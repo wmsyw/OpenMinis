@@ -29,6 +29,25 @@ enum SyncDirtyReason: String {
 /// the `SyncTransport` protocol.
 @MainActor
 final class SyncCore {
+    /// [T-scroll-sync-pause] Longest an inbound batch waits for the chat list
+    /// to stop moving, in total, before applying anyway.
+    static let scrollPauseBudget: TimeInterval = 20
+
+    /// Sleeps in quiet-interval steps while the chat list is being scrolled,
+    /// up to `budget` seconds; returns what is left of the budget.
+    static func waitWhileChatScrolls(budget: TimeInterval) async -> TimeInterval {
+        var left = budget
+        let step = ChatScrollActivity.quietInterval
+        while left > 0, ChatScrollActivity.isMoving {
+            try? await Task.sleep(nanoseconds: UInt64(step * 1_000_000_000))
+            left -= step
+        }
+        if left < budget {
+            logger.info("[SyncCore] inbound apply paused \(String(format: "%.1f", budget - left))s for chat scroll\(left <= 0 ? " — budget spent, applying" : "")")
+        }
+        return left
+    }
+
     static let shared = SyncCore()
     private init() {}
 
@@ -78,6 +97,10 @@ final class SyncCore {
     /// .cellular adds a 0.5× multiplier on top of the foreground throttle.
     enum NetworkClass { case wifi, cellular, other }
     private(set) var networkClass: NetworkClass = .wifi
+    /// [T-icloud-migration-keeps-going] Whether the current network path can
+    /// reach anything. The migration drain treats "offline" as a wait, not a
+    /// stall. True until the monitor reports otherwise.
+    private(set) var isNetworkSatisfied: Bool = true
     private var pathMonitor: NWPathMonitor?
 
     /// Effective chained-send delay seconds for the current context.
@@ -163,6 +186,13 @@ final class SyncCore {
     // MARK: - State
 
     private var pendingSendTask: Task<Void, Never>?
+    /// [T-icloud-device-heartbeat] 30-min SyncDeviceV2 re-announce loop.
+    private var heartbeatTask: Task<Void, Never>?
+    /// [T-icloud-inbound-serial-apply] The most recently started inbound
+    /// apply task. Every `processInbound` call awaits this before touching a
+    /// record, so batches apply strictly in hand-off order. See
+    /// `processInbound` for why.
+    private var inboundTail: Task<Void, Never>?
     private var inboundHandlers: [(SyncInboundBatch) -> Void] = []
     private var isSending = false
 
@@ -215,6 +245,18 @@ final class SyncCore {
             }
         }
         logger.info("[SyncCore] start STEP=observersHooked")
+        // [T-icloud-device-heartbeat] Periodic re-announce while the app is
+        // running. 30 min is far above the poll/push cadence and far below
+        // "days"; the record is ~200 bytes. Cancelled on stop().
+        heartbeatTask?.cancel()
+        heartbeatTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 30 * 60 * 1_000_000_000)
+                guard !Task.isCancelled, self != nil, !DeviceIdentity.isProvisional else { continue }
+                await ChatStore.shared.markDirty(recordType: "SyncDeviceV2", recordId: DeviceIdentity.deviceId)
+                logger.info("[SyncCore] device heartbeat re-marked SyncDeviceV2 (30 min)")
+            }
+        }
         for t in transports {
             logger.info("[SyncCore] start STEP=startTransport begin name=\(t.name)")
             do {
@@ -243,8 +285,13 @@ final class SyncCore {
             // Treat anything that isn't explicitly cellular as wifi-class
             // so the throttle multiplier is sane on those platforms.
             let cls: NetworkClass = path.usesInterfaceType(.cellular) ? .cellular : .wifi
+            let satisfied = path.status == .satisfied
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                if self.isNetworkSatisfied != satisfied {
+                    self.isNetworkSatisfied = satisfied
+                    logger.info("[SyncCore] network \(satisfied ? "available" : "unavailable")")
+                }
                 if self.networkClass != cls {
                     self.networkClass = cls
                     logger.info("[SyncCore] network class changed → \(cls)")
@@ -256,6 +303,7 @@ final class SyncCore {
     }
 
     func stop() async {
+        heartbeatTask?.cancel(); heartbeatTask = nil
         pendingSendTask?.cancel()
         pendingSendTask = nil
         for t in transports {
@@ -263,6 +311,30 @@ final class SyncCore {
         }
         isRunning = false
         logger.info("[SyncCore] stopped")
+    }
+
+    // MARK: - Zone purge bracket
+
+    /// [T-icloud-zone-delete-resurrect] Hold the engine still while the user
+    /// deletes one of the `minis-*` zones from the Zones inventory. The
+    /// transport keeps `saveZone` changes pending for all three, so a delete
+    /// that is not bracketed like this lands and is then immediately undone by
+    /// the engine re-creating the zone.
+    ///
+    /// Reuses `stop()` rather than adding a second teardown path, so the
+    /// transports' own stop semantics stay in one place.
+    func suspendForZonePurge() async {
+        guard isRunning else { return }
+        logger.info("[SyncCore] suspending for zone purge")
+        await stop()
+    }
+
+    /// Restart after a zone purge. `start()` self-guards on `isRunning`, and
+    /// re-creates any zone still genuinely in use.
+    func resumeAfterZonePurge() async {
+        guard SyncV2Bootstrap.isEnabled else { return }
+        logger.info("[SyncCore] resuming after zone purge")
+        await start()
     }
 
     // MARK: - Deferred mode
@@ -416,6 +488,12 @@ final class SyncCore {
             }
         }
 
+        // [T-sync-message-resurrection] Remember which operation each
+        // record was sent with, so an ack only clears the dirty row if it
+        // still carries that operation (a delete marked mid-flight survives).
+        var sentOps: [String: String] = [:]
+        for row in dirty { sentOps["\(row.recordType):\(row.recordId)"] = row.operation }
+
         let batch = SyncOutboundBatch(records: batchRecords, deletes: batchDeletes)
         guard !batch.records.isEmpty || !batch.deletes.isEmpty else {
             return
@@ -472,7 +550,7 @@ final class SyncCore {
         for t in transports {
             do {
                 let outcomes = try await t.send(batch, trigger: trigger)
-                await applyOutcomes(outcomes, transport: t.name)
+                await applyOutcomes(outcomes, transport: t.name, sentOps: sentOps)
                 // Pull any throttle gate the transport learned about
                 // server-side (e.g. CloudKit returned 429 with a partial
                 // batch — we got outcomes back rather than a throw, but
@@ -538,7 +616,8 @@ final class SyncCore {
     /// → clear dirty (we'd loop forever otherwise). Conflicts are
     /// handled by re-merging the server record locally; the transport
     /// is expected to also re-queue the record if it wants a retry.
-    private func applyOutcomes(_ outcomes: [SyncOutcome], transport: String) async {
+    private func applyOutcomes(_ outcomes: [SyncOutcome], transport: String,
+                               sentOps: [String: String] = [:]) async {
         var ok = 0, transient = 0, permanent = 0, conflict = 0
         for outcome in outcomes {
             switch outcome {
@@ -549,7 +628,8 @@ final class SyncCore {
                 // — avoids re-triggering reloadMessagesFromDB for every
                 // freshly-typed message.
                 recentlyPushedIds[id.description] = Date()
-                await ChatStore.shared.clearDirtyRecord(recordName: id.description)
+                await ChatStore.shared.clearDirtyRecord(recordName: id.description,
+                                                        ifOperation: sentOps[id.description])
             case .conflict(_, let serverRecord):
                 conflict += 1
                 processInbound(SyncInboundBatch(records: [serverRecord], deletes: [], sourceDeviceId: nil), from: transport, countAsReceived: false)
@@ -562,7 +642,8 @@ final class SyncCore {
             case .permanentFailure(let id, let reason):
                 permanent += 1
                 logger.error("[SyncCore] permanent failure \(id) via \(transport): \(reason)")
-                await ChatStore.shared.clearDirtyRecord(recordName: id.description)
+                await ChatStore.shared.clearDirtyRecord(recordName: id.description,
+                                                        ifOperation: sentOps[id.description])
             }
         }
         logger.info("[SyncCore] \(transport) outcomes: ok=\(ok) conflict=\(conflict) transient=\(transient) permanent=\(permanent)")
@@ -585,8 +666,59 @@ final class SyncCore {
     /// Apply a remote batch to local SQLite via per-type appliers
     /// registered through `SyncCoreHydrators`. Skips records whose
     /// recordType is not registered (per §3.6.3).
+    /// Stable sort: containers (folders, sessions) first, then their
+    /// children, then everything else in arrival order.
+    private static let applyRank: [String: Int] = [
+        "FolderV2": 0, "SessionV2": 1,
+        "MessageV2": 2, "CompactMarkerV2": 2, "SessionFileV2": 2,
+    ]
+    static func parentsFirst(_ records: [PortableRecord]) -> [PortableRecord] {
+        // Fast path: nothing to reorder when no ranked type is present or
+        // the batch is a single type.
+        guard records.count > 1,
+              records.contains(where: { applyRank[$0.id.type] != nil }) else { return records }
+        return records.enumerated().sorted { a, b in
+            let ra = applyRank[a.element.id.type] ?? 3, rb = applyRank[b.element.id.type] ?? 3
+            return ra != rb ? ra < rb : a.offset < b.offset
+        }.map(\.element)
+    }
+
     func processInbound(_ batch: SyncInboundBatch, from transport: String, countAsReceived: Bool = true) {
-        guard !batch.records.isEmpty || !batch.deletes.isEmpty else { return }
+        // [T-icloud-inbound-serial-apply] Batches apply strictly in the order
+        // processInbound is called. Transports hand a fetch over in 50-record
+        // slices (fetchRecentV2; CKSyncEngine's fetched-changes path, which
+        // also sends its deletes as a separate trailing batch), and each call
+        // used to start an independent MainActor task. Those tasks interleave
+        // at every await (the ChatStore actor hop per record, the 50 ms yield
+        // per 25 records), so parentsFirst — which only sorts WITHIN a batch —
+        // did not hold across slices: slice 2's MessageV2 records ran while
+        // slice 1 was still writing their SessionV2 rows, hit
+        // mergeRemoteMessage's `guard sessionExists` and were dropped. Worse,
+        // the small last slice finished first and its onApplied committed the
+        // poll cursor past those dropped rows, so they were never re-fetched.
+        //
+        // Fix: each apply task awaits the previous one (`inboundTail`) before
+        // it starts. processInbound is synchronous on the main actor, so the
+        // tail swap below is atomic and the chain order is the call order.
+        // A task only ever awaits a task created before it, never itself, so
+        // the chain cannot deadlock; the apply body does not throw (every
+        // await is `try?` or non-throwing), so a slice always completes and
+        // releases the next one. Hydrators never call back into
+        // processInbound and wait on it, which is the only way a cycle could
+        // form. "Last slice applied" therefore really implies "every earlier
+        // slice applied", which is what the cursor commit relies on.
+        let previous = inboundTail
+        guard !batch.records.isEmpty || !batch.deletes.isEmpty else {
+            // An empty batch has nothing to apply, but its completion must
+            // still wait for every batch handed over before it.
+            guard let onApplied = batch.onApplied else { return }
+            guard let previous else { onApplied(); return }
+            inboundTail = Task { @MainActor in
+                await previous.value
+                onApplied()
+            }
+            return
+        }
         // Don't inflate Sync Activity counters when this batch is just the
         // server-side echo from a conflict (our own send racing another
         // device). Real remote fetches and observe-driven inbound do
@@ -603,9 +735,21 @@ final class SyncCore {
         // thrashes ChatStore + UI for tens of seconds, and ARC has no
         // chance to release intermediate Codable structs. Observed:
         // 3+GB resident before OOM crash on a 1196-session migration.
-        Task { @MainActor [weak self] in
+        inboundTail = Task { @MainActor [weak self] in
+            // [T-icloud-inbound-serial-apply] Wait for every earlier batch.
+            await previous?.value
             var applied = 0, skipped = 0, blocked = 0, ownEcho = 0
-            let allRecords = batch.records
+            // [T-icloud-sync-tier1-parents-first] Apply parents before
+            // children. A batch arrives in server order, and a session's
+            // MessageV2 records routinely precede its SessionV2 in the same
+            // fetch. mergeRemoteMessage refuses a message whose session row
+            // does not exist yet (`guard sessionExists`), so those messages
+            // were dropped and only re-pulled on the next 120 s poll —
+            // measured on 2026-09-19: the peer showed an empty session for
+            // 73 s. Ordering by type inside the batch is one sort and makes
+            // the guard a true no-op for the in-order case. Types not listed
+            // keep their relative order after the listed ones.
+            let allRecords = Self.parentsFirst(batch.records)
             let allDeletes = batch.deletes
             let chunkSize = 25
             var i = 0
@@ -616,7 +760,16 @@ final class SyncCore {
                 let ttl = strongSelf.echoTTL
                 strongSelf.recentlyPushedIds = strongSelf.recentlyPushedIds.filter { now.timeIntervalSince($0.value) < ttl }
             }
+            // [T-scroll-sync-pause] Each chunk is applied on the main thread
+            // (~20-60 ms for 25 records); one landing mid-fling dropped 4
+            // frames on device (60 ms, 2026-10-03). Hold the batch while the
+            // chat list is being dragged or decelerating and resume once it
+            // has been still for ChatScrollActivity.quietInterval. Order,
+            // thread and cursor-after-apply are unchanged; the batch only
+            // starts later. Capped so a very long scroll cannot starve sync.
+            var scrollWaitBudget = Self.scrollPauseBudget
             while i < allRecords.count {
+                scrollWaitBudget = await Self.waitWhileChatScrolls(budget: scrollWaitBudget)
                 let end = min(i + chunkSize, allRecords.count)
                 for j in i..<end {
                     let record = allRecords[j]
@@ -666,6 +819,9 @@ final class SyncCore {
                 // intermediaries before the next chunk allocates more.
                 try? await Task.sleep(nanoseconds: 50_000_000)
             }
+            if !allDeletes.isEmpty {
+                scrollWaitBudget = await Self.waitWhileChatScrolls(budget: scrollWaitBudget)
+            }
             for deleteId in allDeletes {
                 guard registry.metadata(for: deleteId.type) != nil else {
                     skipped += 1
@@ -697,6 +853,11 @@ final class SyncCore {
             if applied > 0 {
                 NotificationCenter.default.post(name: .cloudSyncDidFetchChanges, object: nil)
             }
+            // [T-icloud-sync-tier1-cursor-after-apply] Every record above is
+            // now written (or deliberately skipped). Tell the transport so it
+            // can commit its cursor. Runs after the notification on purpose:
+            // the cursor is bookkeeping, the data is what matters.
+            batch.onApplied?()
             _ = self
         }
     }
