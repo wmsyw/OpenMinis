@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.openminis.app.sandbox.PRootKernel
+import com.openminis.app.ui.theme.ChatColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -202,13 +203,13 @@ private fun ParagraphBlock(
 @Composable
 private fun CodeBlockView(block: MarkdownParser.Block.CodeBlock) {
     val context = LocalContext.current
-    val codeColor = Color(0xFF4EC9B0) // Green code text
-    val bgColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val codeColor = ChatColors.codeBlockText
+    val bgColor = ChatColors.codeBlockBg
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(bgColor),
     ) {
         // Header with language label + copy button
@@ -229,7 +230,7 @@ private fun CodeBlockView(block: MarkdownParser.Block.CodeBlock) {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("code", block.code))
                 },
-                modifier = Modifier.height(28.dp),
+                modifier = Modifier.height(48.dp),
             ) {
                 Icon(
                     Icons.Default.ContentCopy,
@@ -250,11 +251,9 @@ private fun CodeBlockView(block: MarkdownParser.Block.CodeBlock) {
         ) {
             Text(
                 text = block.code,
-                style = TextStyle(
+                style = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 13.sp,
                     color = codeColor,
-                    lineHeight = 18.sp,
                 ),
             )
         }
@@ -376,20 +375,20 @@ private fun TableView(
     baseStyle: TextStyle,
     mathSpans: List<MarkdownParser.MathSpan> = emptyList(),
 ) {
-    val borderColor = color.copy(alpha = 0.2f)
+    val borderColor = ChatColors.tableBorder
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .border(0.5.dp, borderColor, RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp)),
+            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(14.dp)),
     ) {
         Column {
             // Header row
             Row(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .background(ChatColors.secondaryBg)
                     .height(IntrinsicSize.Min),
             ) {
                 for ((colIdx, header) in table.headers.withIndex()) {
@@ -500,9 +499,9 @@ private fun InlineContent(
     style: TextStyle,
     modifier: Modifier = Modifier,
 ) {
-    val inlineCodeBg = MaterialTheme.colorScheme.surfaceContainerHighest
-    val inlineCodeColor = MaterialTheme.colorScheme.primary
-    val linkColor = MaterialTheme.colorScheme.primary
+    val inlineCodeBg = ChatColors.inlineCodeBg
+    val inlineCodeColor = ChatColors.inlineCodeText
+    val linkColor = ChatColors.link
 
     // Strip any leftover math placeholders (U+FFFC MATH<n> U+FFFC). The
     // ParagraphBlock split path resolves them when math spans are
@@ -545,7 +544,7 @@ private fun InlineContent(
         }
     }
 
-    val annotated = remember(cleaned, color, linkListener) {
+    val annotated = remember(cleaned, color, style, inlineCodeBg, inlineCodeColor, linkColor, linkListener) {
         parseInline(cleaned, color, style, inlineCodeBg, inlineCodeColor, linkColor, linkListener)
     }
 

@@ -281,17 +281,7 @@ import androidx.compose.ui.draw.drawWithCache
 
 @Composable
 internal fun AssistantHeader() {
-    // [T-soul-md] Identity header = icon + SOUL.md-driven `name`.
-    //
-    // [T-android-soul-custom-icon] The icon is now the user-settable
-    // `SoulMetadata.icon` (emoji or transparent PNG), falling back to the
-    // canonical sparkle gradient when unset — so a user who never touches it
-    // sees exactly the previous rendering.
-    //
-    // Deliberately the SAME composable the settings card uses. On iOS these
-    // two surfaces were written separately and the chat one silently failed
-    // to pick up image icons; sharing the renderer makes that class of
-    // divergence impossible rather than merely unlikely.
+    // Identity stays as quiet text above an open reading column.
     val soulMeta by com.openminis.app.agent.SoulStore.cachedMetadata.collectAsState()
     val displayName = soulMeta.name.ifBlank { com.openminis.app.agent.SoulMetadata.DEFAULT.name }
     Row(
@@ -303,24 +293,11 @@ internal fun AssistantHeader() {
             // inside the turn is unaffected (that's this row's bottom=2).
             .padding(top = 10.dp, bottom = 2.dp),
     ) {
-        val sparkleGradient = Brush.linearGradient(
-            colors = listOf(SparkleColor1, SparkleColor2),
-        )
-        // 18.dp, matching the previous Icon exactly: the row height feeds a
-        // measured-height estimate in the message list, so the icon stays
-        // square and same-sized whichever branch renders.
-        com.openminis.app.ui.settings.SoulIconGlyph(
-            icon = soulMeta.icon,
-            sizeDp = 18.dp,
-            emojiSp = 15.sp,
-            sparkleTint = sparkleGradient,
-        )
-        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = displayName,
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = ChatColors.secondaryText,
         )
     }
 }
@@ -381,32 +358,15 @@ internal fun UsageCapsule(usage: ChatTokenUsage?, completedAt: Long?) {
     val clock = remember(completedAt, today) {
         completedAt?.let { formatReplyClock(it, System.currentTimeMillis(), java.util.Locale.getDefault()) }
     }
-    val ink = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val ink = ChatColors.tertiaryText
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .padding(top = 2.dp, bottom = 2.dp)
-            // Capsule: pill shape, 8dp / 3dp padding.
-            //
-            // [T-android-usage-capsule-tint] The fill is derived from the
-            // user-bubble colour but NOT `userBubble.copy(alpha = 0.6f)`, which
-            // is what a literal reading of the iOS line produces and what this
-            // used to do. iOS's `userBubble` is `tertiarySystemFill`, already a
-            // translucent grey in both appearances, so 60% of it lands soft.
-            // Android's dark value is `0xFF2F3A5C` — fully OPAQUE — so the same
-            // arithmetic produced a solid blue-grey slab that read as a filled
-            // component rather than an incidental footnote, and clashed with
-            // the surrounding chat.
-            //
-            // Taking the colour at a low alpha over the surface keeps it a
-            // tint in both themes: it settles onto whatever is behind it
-            // instead of asserting its own block of colour. 0.22 was still
-            // reading as a distinct chip against the light chat background;
-            // 0.10 leaves the shape legible without the capsule announcing
-            // itself, which is what a hidden-by-default easter egg wants.
-            .clip(RoundedCornerShape(50))
-            .background(ChatColors.userBubble.copy(alpha = 0.10f))
+            // Quiet usage metadata belongs to the reading column, not a badge.
+            .clip(RoundedCornerShape(10.dp))
+            .background(ChatColors.secondaryBg)
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
         // iOS uses the `speedometer` SF Symbol; Speed is the same idea in
@@ -419,8 +379,8 @@ internal fun UsageCapsule(usage: ChatTokenUsage?, completedAt: Long?) {
         )
         Text(
             text = summary,
-            fontSize = 10.sp,
-            lineHeight = 11.sp,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
             fontFamily = FontFamily.Monospace,
             color = ink,
             maxLines = 1,
@@ -431,8 +391,8 @@ internal fun UsageCapsule(usage: ChatTokenUsage?, completedAt: Long?) {
             Spacer(Modifier.width(8.dp))
             Text(
                 text = it,
-                fontSize = 10.sp,
-                lineHeight = 11.sp,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
                 fontFamily = FontFamily.Monospace,
                 color = ink,
                 maxLines = 1,
@@ -616,8 +576,8 @@ internal fun InlineErrorBanner(error: String, onRetry: (() -> Unit)? = null) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFFF3B30).copy(alpha = 0.12f))
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
             .combinedClickable(
                 onClick = {},
                 onLongClick = {
@@ -630,16 +590,15 @@ internal fun InlineErrorBanner(error: String, onRetry: (() -> Unit)? = null) {
         Icon(
             imageVector = Icons.Default.Error,
             contentDescription = null,
-            tint = Color(0xFFFF3B30),
+            tint = MaterialTheme.colorScheme.onErrorContainer,
             modifier = Modifier.size(14.dp),
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             // [T-in-chat-search] matches painted in place
             text = com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(error, com.openminis.app.ui.chat.search.ChatSearchUnits.ERROR),
-            color = Color(0xFFFF3B30),
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -648,20 +607,21 @@ internal fun InlineErrorBanner(error: String, onRetry: (() -> Unit)? = null) {
             Spacer(modifier = Modifier.width(8.dp))
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFFF3B30).copy(alpha = 0.15f))
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.errorContainer)
                     .clickable(onClick = onRetry)
+                    .heightIn(min = 48.dp)
                     .padding(horizontal = 10.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = null,
-                    tint = Color(0xFFFF3B30),
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.size(10.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(R.string.chat_longpress_retry), color = Color(0xFFFF3B30), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.chat_longpress_retry), color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -676,7 +636,7 @@ internal fun InlineErrorBanner(error: String, onRetry: (() -> Unit)? = null) {
  * an affordance-discoverability win. Resume banner (T13) makes the global
  * cancel UX recoverable.
  *
- * Visual: 14×14 red rounded square (Color 0xFFFF3B30 = iOS systemRed).
+ * Visual: compact stop mark; the native-sized target is kept inside the row.
  */
 @Composable
 private fun ToolStopButton(
@@ -684,17 +644,14 @@ private fun ToolStopButton(
     modifier: Modifier = Modifier,
 ) {
     val label = stringResource(R.string.stop_tool)
-    // Outer Box keeps the *layout* footprint at 18×18 (unchanged capsule width).
-    // The inner clickable Box is 24×24 and overflows the outer bounds equally on
-    // all sides (requiredSize ignores the parent's 18dp constraint), enlarging the
-    // touch target to 24 while the visual 10×10 red square stays identical.
+    // Reserve the full touch target instead of overlapping neighbouring text.
     Box(
-        modifier = modifier.size(18.dp),
+        modifier = modifier.size(48.dp),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .requiredSize(24.dp)
+                .requiredSize(48.dp)
                 .clip(RoundedCornerShape(6.dp))
                 .clickable(
                     onClickLabel = label,
@@ -706,7 +663,7 @@ private fun ToolStopButton(
                 modifier = Modifier
                     .size(10.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color(0xFFFF3B30)),
+                    .background(MaterialTheme.colorScheme.error),
             )
         }
     }
@@ -855,6 +812,7 @@ internal fun ToolCallPill(
     // title text just to slide a translucent band; a sibling layer moves only
     // itself. The clock is held only while the tool is RUNNING.
     val shimmerTick = if (isRunning) rememberDecorativeTick() else null
+    val shimmerColor = MaterialTheme.colorScheme.onSurface
 
     // [T-android-tool-bubble-longpress-menu] Long-press menu state, scoped
     // to this pill. The DropdownMenu is anchored to the pill via the Box
@@ -870,10 +828,9 @@ internal fun ToolCallPill(
             modifier = Modifier
                 .background(
                     ChatColors.toolCapsuleBg,
-                    CircleShape,
+                    RoundedCornerShape(14.dp),
                 )
-                .border(0.5.dp, ChatColors.toolBorder, CircleShape)
-                .clip(CircleShape)
+                .clip(RoundedCornerShape(14.dp))
                 .combinedClickable(
                     onClick = { onOpenDetail(block.id) },
                     onLongClick = if (onRerunFromHere != null || onCopyDetails != null || onSearchInChat != null) {
@@ -881,7 +838,7 @@ internal fun ToolCallPill(
                     } else null,
                 )
                 .padding(horizontal = 12.dp)
-                .height(36.dp),
+                .heightIn(min = 48.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Status icon — always the typed tool icon. Color shifts to
@@ -918,9 +875,8 @@ internal fun ToolCallPill(
                     // identically.
                     // [T-in-chat-search] matches painted in place
                     text = com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(controlSummary ?: displayToolTitle(block), com.openminis.app.ui.chat.search.ChatSearchUnits.BODY),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ChatColors.secondaryText,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
@@ -939,9 +895,9 @@ internal fun ToolCallPill(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = durationText,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = ChatColors.tertiaryText,
                     softWrap = false,
                     maxLines = 1,
                 )
@@ -963,7 +919,7 @@ internal fun ToolCallPill(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(14.dp))
                     .graphicsLayer {
                         val phase = decorativePhase(shimmerTick.value, SHIMMER_PERIOD_MS)
                         // Same -1f..2f sweep, in pill widths, the old tween produced.
@@ -973,9 +929,9 @@ internal fun ToolCallPill(
                         val band = size.width * 0.6f
                         val brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0f),
-                                Color.White.copy(alpha = 0.18f),
-                                Color.White.copy(alpha = 0f),
+                                shimmerColor.copy(alpha = 0f),
+                                shimmerColor.copy(alpha = 0.06f),
+                                shimmerColor.copy(alpha = 0f),
                             ),
                             start = Offset(0f, 0f),
                             end = Offset(band, 0f),
@@ -1109,7 +1065,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
         // One-shot auto-collapse when streaming for this block ends.
         if (shouldAutoCollapseThinking(isStreaming, userIntent)) expanded = false
     }
-    val thinkingBlue = Color(0xFF007AFF)
+    val thinkingBlue = ChatColors.thinking
     val charCount = block.content.length
     val charLabel = when {
         charCount >= 1000 -> "${charCount / 1000}K"
@@ -1137,9 +1093,8 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .background(thinkingBlue.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
-            .border(0.5.dp, thinkingBlue.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-            .clip(RoundedCornerShape(12.dp))
+            .background(ChatColors.toolCapsuleBg, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(14.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Box {
@@ -1218,7 +1173,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     fontFamily = FontFamily.Monospace,
-                    color = thinkingBlue.copy(alpha = 0.6f),
+                    color = ChatColors.tertiaryText,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
             }
@@ -1333,7 +1288,7 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                                 charCount / 1000,
                             ),
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                            color = ChatColors.tertiaryText,
                             // [T-thinking-hint-align] Vertical padding only. The iOS
                             // original insets BOTH the hint and the thinking text by
                             // 12pt; here the text below has no horizontal inset, so a
@@ -1358,9 +1313,8 @@ internal fun ThinkingBlock(block: AssistantBlock, isStreaming: Boolean, isLast: 
                 }
                 Text(
                     text = displayContent,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                    lineHeight = 19.sp,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ChatColors.secondaryText,
                 )
             }
         }

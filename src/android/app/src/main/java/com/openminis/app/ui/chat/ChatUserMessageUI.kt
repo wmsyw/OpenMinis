@@ -276,7 +276,7 @@ import com.openminis.app.ui.browser.BrowserSheet
 import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.components.MinisTextButton
 
-// ─── User Message (right-aligned, iOS: tertiarySystemFill bubble, 18dp radius) ─
+// ─── User message: a right-aligned, mist-blue bubble ─────────────────────
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -387,7 +387,7 @@ internal fun UserMessageBubble(
                     ) {
                         val textColor = if (isQueued) secondaryTextColor else MaterialTheme.colorScheme.onSurface
                         val bubbleBg = if (isQueued) Color.Transparent else userBubbleColor
-                        val shape = RoundedCornerShape(18.dp)
+                        val shape = RoundedCornerShape(20.dp)
                         val dashedStroke = if (isQueued) {
                             Modifier.drawBehind {
                                 val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
@@ -396,7 +396,7 @@ internal fun UserMessageBubble(
                                         floatArrayOf(6.dp.toPx(), 4.dp.toPx()), 0f
                                     ),
                                 )
-                                val r = 18.dp.toPx()
+                                val r = 20.dp.toPx()
                                 drawRoundRect(
                                     color = secondaryTextColor.copy(alpha = 0.5f),
                                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
@@ -438,12 +438,12 @@ internal fun UserMessageBubble(
                                     // [T-in-chat-search] matches painted in place
                                     text = com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(message.content, com.openminis.app.ui.chat.search.ChatSearchUnits.BODY),
                                     color = textColor,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.5.sp),
+                                    style = MaterialTheme.typography.bodyLarge,
                                     modifier = bubbleModifier
                                         .background(bubbleBg, shape)
                                         .clip(shape)
                                         .then(dashedStroke)
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
                                 )
                             }
                         }
@@ -461,7 +461,7 @@ internal fun UserMessageBubble(
                                 Icon(
                                     imageVector = Icons.Filled.Cancel,
                                     contentDescription = "Withdraw queued message",
-                                    tint = Color(0xFFFF3B30),
+                                    tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(24.dp),
                                 )
                             }
@@ -635,9 +635,9 @@ internal fun UserAttachmentList(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(tileSize)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(14.dp))
                     .background(ChatColors.secondaryBg)
-                    .border(0.5.dp, ChatColors.thumbnailBorder, RoundedCornerShape(8.dp))
+                    .border(0.5.dp, ChatColors.thumbnailBorder, RoundedCornerShape(14.dp))
                     .clickable { previewImageIndex = idx },
             )
         }
@@ -690,8 +690,11 @@ private fun FileAttachmentTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
-            .size(tileSize)
-            .clip(RoundedCornerShape(8.dp))
+            .width(tileSize)
+            // Grow with the filename's scaled line height; never trade the
+            // file icon's space for the text's measured height.
+            .heightIn(min = tileSize)
+            .clip(RoundedCornerShape(14.dp))
             .background(ChatColors.secondaryBg)
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 6.dp),
@@ -700,15 +703,13 @@ private fun FileAttachmentTile(
             imageVector = fileIconFor(fileName),
             contentDescription = null,
             tint = ChatColors.secondaryText,
-            modifier = Modifier
-                .size(20.dp)
-                .weight(1f, fill = false),
+            modifier = Modifier.size(20.dp),
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(fileName, com.openminis.app.ui.chat.search.ChatSearchUnits.attachment(searchIndex)),
-            fontSize = 9.sp,
-            lineHeight = 11.sp,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
             color = ChatColors.primaryText,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -750,7 +751,7 @@ private fun ImageGalleryDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -777,18 +778,18 @@ private fun ImageGalleryDialog(
                 Icon(
                     androidx.compose.material.icons.Icons.Default.Close,
                     contentDescription = "Close",
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
             if (uris.size > 1) {
                 Text(
                     text = "${pagerState.currentPage + 1} / ${uris.size}",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 12.sp,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 16.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(10.dp))
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
             }

@@ -107,19 +107,20 @@ import com.openminis.app.ui.components.DecorativeSpinner
 //   • AgentTranscriptScreen — full-screen, read-only child conversation
 // All read HelperBlockInfo, the single parser for every payload shape.
 
-/** Electric violet, dynamic per appearance (#734DED light / #A385FF dark):
- *  reads as "AI / tech" and stays clear of red (stop/error), green (done),
- *  yellow (timeout) and blue (thinking). */
-val HelperAccentLight = Color(0xFF734DED)
-val HelperAccentDark = Color(0xFFA385FF)
+/** Shared primary accent; static variants remain available to tool colour maps. */
+val HelperAccentLight = com.openminis.app.ui.theme.LightChatPalette.sendButton
+val HelperAccentDark = com.openminis.app.ui.theme.DarkChatPalette.sendButton
 @Composable
-internal fun helperAccent(): Color = if (ChatColors.isDark) HelperAccentDark else HelperAccentLight
-/** Static mid-tone for non-composable call sites (tool colour map). */
-val HelperAccentStatic = Color(0xFF8B6CF6)
+internal fun helperAccent(): Color = MaterialTheme.colorScheme.primary
+/** Static light-appearance accent for non-composable tool colour maps. */
+val HelperAccentStatic = HelperAccentLight
 
-internal val HelperStatusGreen = Color(0xFF34C759)
-internal val HelperStatusYellow = Color(0xFFFFCC00)
-internal val HelperStatusRed = Color(0xFFFF3B30)
+internal val HelperStatusGreen: Color
+    @Composable get() = MaterialTheme.colorScheme.tertiary
+internal val HelperStatusYellow: Color
+    @Composable get() = ChatColors.warningText
+internal val HelperStatusRed: Color
+    @Composable get() = MaterialTheme.colorScheme.error
 
 /** What an agent block's content currently says, in structured form. */
 internal sealed class HelperPhase {
@@ -554,7 +555,7 @@ internal fun HelperToolBlock(
                 // and the only useful action is to run it.
                 val startLabel = stringResource(R.string.helper_start)
                 Box(
-                    modifier = Modifier.size(24.dp).clip(CircleShape).background(helperAccent())
+                    modifier = Modifier.size(48.dp).clip(CircleShape).background(helperAccent())
                         .clickable(onClickLabel = startLabel) { onStart() }
                         .semantics { contentDescription = startLabel },
                     contentAlignment = Alignment.Center,
@@ -562,7 +563,7 @@ internal fun HelperToolBlock(
                     Icon(
                         Icons.Default.PlayArrow,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(14.dp),
                     )
                 }
@@ -576,8 +577,8 @@ internal fun HelperToolBlock(
                 // Running and Stop takes this slot back by itself.
                 val resumeLabel = stringResource(R.string.helper_resume)
                 Box(
-                    modifier = Modifier.size(24.dp).clip(CircleShape)
-                        .background(helperAccent().copy(alpha = if (resuming) 0.25f else 1f))
+                    modifier = Modifier.size(48.dp).clip(CircleShape)
+                        .background(if (resuming) MaterialTheme.colorScheme.surfaceContainerHighest else helperAccent())
                         .clickable(enabled = !resuming, onClickLabel = resumeLabel) { resuming = onResume() }
                         .semantics { contentDescription = resumeLabel },
                     contentAlignment = Alignment.Center,
@@ -585,7 +586,7 @@ internal fun HelperToolBlock(
                     Icon(
                         Icons.Default.Refresh,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = if (resuming) ChatColors.secondaryText else MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(14.dp),
                     )
                 }
@@ -596,11 +597,11 @@ internal fun HelperToolBlock(
                 // Classic stop-recording look: red disc, white rounded square.
                 val stopLabel = stringResource(R.string.helper_stop)
                 Box(
-                    modifier = Modifier.size(24.dp).clip(CircleShape).background(HelperStatusRed)
+                    modifier = Modifier.size(48.dp).clip(CircleShape).background(HelperStatusRed)
                         .clickable(onClickLabel = stopLabel) { onStop() }
                         .semantics { contentDescription = stopLabel },
                     contentAlignment = Alignment.Center,
-                ) { Box(Modifier.size(9.dp).clip(RoundedCornerShape(2.dp)).background(Color.White)) }
+                ) { Box(Modifier.size(9.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.onError)) }
             }
         }
         else -> null
@@ -737,7 +738,7 @@ private fun HelperSecondLine(info: HelperBlockInfo) {
                 Icon(
                     Icons.Default.Warning,
                     contentDescription = stringResource(R.string.agent_pinned_group_unavailable),
-                    tint = Color(0xFFFFCC00),
+                    tint = HelperStatusYellow,
                     modifier = Modifier.size(11.dp),
                 )
             }
@@ -749,7 +750,7 @@ private fun HelperSecondLine(info: HelperBlockInfo) {
                 )
             }
             p.elapsedSeconds?.let { Text(helperElapsedLabel(it), fontSize = 11.sp, lineHeight = 12.sp, fontFamily = FontFamily.Monospace, color = ChatColors.tertiaryText, maxLines = 1) }
-            if (p.escalation) Icon(Icons.Default.PriorityHigh, contentDescription = null, tint = Color(0xFFFF9500), modifier = Modifier.size(11.dp))
+            if (p.escalation) Icon(Icons.Default.PriorityHigh, contentDescription = null, tint = HelperStatusYellow, modifier = Modifier.size(11.dp))
         }
     }
 }
@@ -777,21 +778,18 @@ internal fun HelperThumbContent(block: AssistantBlock) {
     // asymmetric `end = 8.dp` existed only to hold text clear of the strip, and
     // keeping it would just cost 3dp of width on a 100dp preview whose title
     // and model line are already ellipsizing. The overlay Box went with it.
-    Column(modifier = Modifier.fillMaxSize().padding(5.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(modifier = Modifier.fillMaxSize().background(ChatColors.toolBg).padding(5.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             Icon(Icons.Default.Groups, contentDescription = null, tint = accent, modifier = Modifier.size(8.dp))
             Text(stringResource(R.string.helper_label), fontSize = 6.sp, lineHeight = 7.sp, fontWeight = FontWeight.Bold, color = accent, maxLines = 1)
         }
-        Text(info.title, fontSize = 7.sp, lineHeight = 8.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(info.title, fontSize = 7.sp, lineHeight = 8.sp, fontWeight = FontWeight.SemiBold, color = ChatColors.primaryText, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.weight(1f))
         when (val p = info.phase) {
-            is HelperPhase.Starting -> Text(stringResource(R.string.agent_status_starting), fontSize = 6.sp, lineHeight = 7.sp, color = Color.White.copy(alpha = 0.7f), maxLines = 1)
-            // [T-android-queued-visual] Accent here too, so the toolbar preview
-            // agrees with the card it opens. The thumbnail sits on a dark
-            // ground, so this is the accent rather than the card's — same
-            // meaning, legible against a different background.
+            is HelperPhase.Starting -> Text(stringResource(R.string.agent_status_starting), fontSize = 6.sp, lineHeight = 7.sp, color = ChatColors.secondaryText, maxLines = 1)
+            // Queue state keeps the same primary accent as the full card.
             is HelperPhase.Queued -> Text(stringResource(R.string.agent_status_queued), fontSize = 6.sp, lineHeight = 7.sp, color = accent, maxLines = 1)
-            is HelperPhase.NeverStarted -> Text(stringResource(R.string.agent_status_never_started), fontSize = 6.sp, lineHeight = 7.sp, color = Color.White.copy(alpha = 0.55f), maxLines = 1)
+            is HelperPhase.NeverStarted -> Text(stringResource(R.string.agent_status_never_started), fontSize = 6.sp, lineHeight = 7.sp, color = ChatColors.tertiaryText, maxLines = 1)
             is HelperPhase.Running -> {
                 if (p.tool != null) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     Icon(helperToolIcon(p.tool), contentDescription = null, tint = accent, modifier = Modifier.size(7.dp))
@@ -799,7 +797,7 @@ internal fun HelperThumbContent(block: AssistantBlock) {
                 }
                 Text(
                     listOf(p.activity, p.clock).filter { it.isNotEmpty() }.joinToString(" · "),
-                    fontSize = 6.sp, lineHeight = 7.sp, color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 6.sp, lineHeight = 7.sp, color = ChatColors.secondaryText,
                     maxLines = if (p.tool == null) 2 else 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -824,7 +822,7 @@ internal fun HelperThumbContent(block: AssistantBlock) {
                     if (p.modelGroupUnavailable) {
                         Icon(
                             Icons.Default.Warning, contentDescription = null,
-                            tint = Color(0xFFFFCC00).copy(alpha = 0.9f),
+                            tint = HelperStatusYellow,
                             modifier = Modifier.size(6.dp),
                         )
                     }
@@ -851,16 +849,15 @@ internal fun AgentDetailCard(
     trailing: (@Composable () -> Unit)? = null,
     body: (@Composable () -> Unit)? = null,
 ) {
-    val isDark = ChatColors.isDark
-    val barBg = if (isDark) Color(0xFF212121) else Color(0xFFEBEBEB)
-    val cardBg = if (isDark) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
-    val stroke = if (isDark) Color(0xFF404040) else Color(0xFFD1D1D1)
-    val shape = RoundedCornerShape(10.dp)
+    val barBg = ChatColors.toolCapsuleBg
+    val cardBg = ChatColors.toolBg
+    val stroke = ChatColors.toolBorder
+    val shape = RoundedCornerShape(14.dp)
     Column(modifier = Modifier.fillMaxWidth().clip(shape).background(cardBg).border(0.5.dp, stroke, shape)) {
         Row(modifier = Modifier.fillMaxWidth().background(barBg).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(6.dp))
-            Text(title, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = ChatColors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(title, style = MaterialTheme.typography.titleSmall, color = ChatColors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             trailing?.invoke()
         }
         if (body != null) {
@@ -912,8 +909,10 @@ private fun HelperControlDetailContent(block: AssistantBlock, summary: String) {
                 icon = Icons.Default.CheckCircle,
             ) {
                 Text(
-                    result, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
-                    color = ChatColors.secondaryText,
+                    result, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    color = ChatColors.codeBlockText,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                        .background(ChatColors.codeBlockBg).padding(12.dp),
                 )
             }
         }
@@ -1213,8 +1212,10 @@ internal fun HelperDetailContent(block: AssistantBlock) {
                 iconTint = HelperStatusRed,
             ) {
                 Text(
-                    detail, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
-                    color = ChatColors.primaryText,
+                    detail, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    color = ChatColors.codeBlockText,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                        .background(ChatColors.codeBlockBg).padding(12.dp),
                 )
             }
         }
@@ -1310,7 +1311,7 @@ internal fun AgentCallbackCard(callback: AgentCallback, onTap: () -> Unit, modif
     val accent = when (callback.status) {
         "running" -> helperAccent
         "done" -> HelperStatusGreen
-        "cancelled", "timeout" -> Color(0xFFFFCC00)
+        "cancelled", "timeout" -> HelperStatusYellow
         else -> HelperStatusRed
     }
     val icon = when {
@@ -1340,8 +1341,8 @@ internal fun AgentCallbackCard(callback: AgentCallback, onTap: () -> Unit, modif
             .padding(vertical = 4.dp)
             .height(56.dp)
             .clip(shape)
-            .background(ChatColors.secondaryBg)
-            .border(1.dp, accent.copy(alpha = 0.25f), shape)
+            .background(ChatColors.toolBg)
+            .border(1.dp, ChatColors.toolBorder, shape)
             .clickable(onClickLabel = stringResource(R.string.agent_open_detail), onClick = onTap)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1356,9 +1357,9 @@ internal fun AgentCallbackCard(callback: AgentCallback, onTap: () -> Unit, modif
                 com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(
                     headline, com.openminis.app.ui.chat.search.ChatSearchUnits.TITLE, offset = headline.length - callback.title.length,
                 ),
-                fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold, color = ChatColors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleSmall, color = ChatColors.primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
-            Text(subline, fontSize = 12.sp, lineHeight = 15.sp, color = ChatColors.secondaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subline, style = MaterialTheme.typography.bodySmall, color = ChatColors.secondaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = ChatColors.tertiaryText, modifier = Modifier.size(16.dp))
     }

@@ -10,6 +10,7 @@ import android.os.LocaleList
 import android.provider.Settings
 import com.openminis.app.accessibility.AccessibilityRecoveryManager
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -18,6 +19,8 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import android.app.AlertDialog
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -558,12 +561,20 @@ class MainActivity : ComponentActivity() {
                     // edges. Per-screen `isAppearanceLightStatusBars` overrides
                     // (e.g. FilePreviewScreen DisposableEffect) still control
                     // icon contrast.
-                    SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
+                    SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme }
                 }
                 enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
             }
 
             MinisTheme(darkTheme = darkTheme, fontScale = fontScale) {
+                val windowBackground = MaterialTheme.colorScheme.background
+                val windowDrawable = remember(windowBackground) {
+                    ColorDrawable(windowBackground.toArgb())
+                }
+                SideEffect {
+                    window.setBackgroundDrawable(windowDrawable)
+                }
+
                 val navController = rememberNavController().also { this.navController = it }
 
                 // T166: drive `SessionActivityTracker.setPresent` /

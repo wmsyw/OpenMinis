@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,7 +49,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,12 +70,10 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.openminis.app.browser.BrowserHistoryStore
 import com.openminis.app.browser.BrowserTabPool
 import com.openminis.app.browser.UserAgentProfile
@@ -85,6 +84,7 @@ import com.openminis.app.ui.components.rememberDecorativeTick
 import com.openminis.app.ui.components.decorativePhase
 import com.openminis.app.ui.components.decorativePingPong
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
 
 /**
  * Bottom sheet presenting the browser tab pool with tab bar, URL bar,
@@ -122,8 +122,8 @@ fun BrowserSheet(
     val downloadEntries by tabPool.downloads.collectAsState()
 
     val accent = MaterialTheme.colorScheme.primary
-    val secondaryBg = MaterialTheme.colorScheme.surfaceContainer
-    val tertiaryBg = MaterialTheme.colorScheme.surfaceContainerHigh
+    val secondaryBg = MaterialTheme.colorScheme.surface
+    val tertiaryBg = MaterialTheme.colorScheme.surfaceContainerLow
 
     // Mirror iOS onAppear: ensure at least one tab exists when the sheet opens.
     // Callers should also call `ensureTabForUI()` before flipping the sheet
@@ -169,14 +169,14 @@ fun BrowserSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(tertiaryBg)
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                    .background(secondaryBg)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
                     onClick = { scope.launch { tabPool.newTabFromUI() } },
                     enabled = tabs.size < 3 && !isAgentBusy,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.browser_new_tab), modifier = Modifier.size(20.dp))
                 }
@@ -207,10 +207,8 @@ fun BrowserSheet(
                     item {
                         Text(
                             "${tabs.size}/3",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 4.dp),
                         )
                     }
@@ -218,31 +216,30 @@ fun BrowserSheet(
                 IconButton(
                     onClick = { showHistory = true },
                     enabled = !isAgentBusy,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Icon(Icons.Default.History, contentDescription = stringResource(R.string.browser_history_action), modifier = Modifier.size(20.dp))
                 }
             }
 
-            // ── URL Bar ── (compact 36dp pill — OutlinedTextField defaults to
-            // ~56dp which dominates the sheet header; users want to spend the
-            // space on the WebView.)
+            // A 48 dp address field keeps navigation comfortable without
+            // changing the page viewport or its rendering.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(secondaryBg)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(36.dp)
-                        .background(tertiaryBg, RoundedCornerShape(10.dp))
+                        .heightIn(min = 48.dp)
+                        .background(tertiaryBg, RoundedCornerShape(14.dp))
                         .border(
-                            0.5.dp,
+                            1.dp,
                             MaterialTheme.colorScheme.outlineVariant,
-                            RoundedCornerShape(10.dp),
+                            RoundedCornerShape(14.dp),
                         )
                         .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -255,9 +252,7 @@ fun BrowserSheet(
                             onValueChange = { urlInput = it },
                             singleLine = true,
                             enabled = !isAgentBusy,
-                            textStyle = LocalTextStyle.current.copy(
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.Monospace,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
                                 color = MaterialTheme.colorScheme.onSurface,
                             ),
                             cursorBrush = androidx.compose.ui.graphics.SolidColor(accent),
@@ -277,8 +272,7 @@ fun BrowserSheet(
                         if (urlInput.isEmpty()) {
                             Text(
                                 stringResource(R.string.browser_search_placeholder),
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -287,12 +281,12 @@ fun BrowserSheet(
                         Spacer(modifier = Modifier.width(4.dp))
                         IconButton(
                             onClick = { selectedTab?.manager?.stopLoading() },
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(48.dp),
                         ) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = stringResource(R.string.browser_stop),
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                     }
@@ -328,7 +322,7 @@ fun BrowserSheet(
                     )
                 } else {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().background(tertiaryBg).padding(24.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -336,6 +330,7 @@ fun BrowserSheet(
                             else stringResource(R.string.browser_enter_url_hint),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                     }
                 }
@@ -373,15 +368,16 @@ fun BrowserSheet(
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                     )
                     if (dl.progress >= 0f) {
                         LinearProgressIndicator(
                             progress = { dl.progress },
-                            modifier = Modifier.weight(1f).height(3.dp),
+                            modifier = Modifier.width(64.dp).height(3.dp),
                         )
                     } else {
                         LinearProgressIndicator(
-                            modifier = Modifier.weight(1f).height(3.dp),
+                            modifier = Modifier.width(64.dp).height(3.dp),
                         )
                     }
                 }
@@ -393,7 +389,7 @@ fun BrowserSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(secondaryBg)
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -494,36 +490,39 @@ private fun TabChip(
     onClick: () -> Unit,
     onClose: () -> Unit,
 ) {
-    val bg = if (isSelected) accent.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceContainerHighest
-    val borderColor = if (isSelected) accent.copy(alpha = 0.4f) else Color.Transparent
-    val textColor = if (isSelected) accent else MaterialTheme.colorScheme.onSurface
+    val bg = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
+    val borderColor = if (isSelected) accent.copy(alpha = 0.35f) else Color.Transparent
+    val textColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
     Row(
         modifier = Modifier
-            .background(bg, CircleShape)
-            .border(1.dp, borderColor, CircleShape)
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(bg)
+            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(start = 10.dp, end = if (showClose) 6.dp else 10.dp, top = 5.dp, bottom = 5.dp),
+            .padding(start = 12.dp, end = if (showClose) 0.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             color = textColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 160.dp),
         )
         if (showClose) {
             Spacer(Modifier.width(4.dp))
             IconButton(
                 onClick = onClose,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     Icons.Default.Close,
                     contentDescription = stringResource(R.string.browser_close_tab),
-                    modifier = Modifier.size(10.dp),
+                    modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -595,14 +594,16 @@ private fun AgentBrowsingOverlay(accent: Color, onTakeover: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.35f))
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f))
             .clickable(enabled = false) {},
         contentAlignment = Alignment.Center,
     ) {
         Row(
             modifier = Modifier
-                .background(Color.Black.copy(alpha = 0.7f), CircleShape)
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(16.dp)
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(20.dp))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -616,25 +617,18 @@ private fun AgentBrowsingOverlay(accent: Color, onTakeover: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Text(
                 stringResource(R.string.browser_minis_browsing),
-                color = Color.White.copy(alpha = 0.9f),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(12.dp))
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(14.dp)
-                    .background(Color.White.copy(alpha = 0.3f)),
-            )
-            Spacer(Modifier.width(12.dp))
-            Text(
-                stringResource(R.string.browser_takeover),
-                color = accent,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable(onClick = onTakeover),
-            )
+            androidx.compose.material3.TextButton(onClick = onTakeover) {
+                Text(
+                    stringResource(R.string.browser_takeover),
+                    color = accent,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
         }
     }
 }

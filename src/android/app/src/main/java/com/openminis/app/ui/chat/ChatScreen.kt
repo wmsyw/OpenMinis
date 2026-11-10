@@ -307,15 +307,13 @@ import com.openminis.app.ui.theme.ChatColors
 import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
 
-// iOS ChatColors equivalent
-internal val ToolCheckColor = Color(0xFF34C759) // iOS .green
-internal val ToolErrorColor = Color(0xFFFF3B30) // iOS .red
-internal val ToolCancelColor = Color(0xFFFFCC00) // iOS .yellow
-// Memory tool accent — matches iOS `.pink` on SF Symbols.
-internal val ToolMemoryAccent = Color(0xFFFF2D55)
-// Sparkle gradient colors (iOS uses linear gradient)
-internal val SparkleColor1 = Color(0xFFB8B096) // rgb(0.72, 0.69, 0.59)
-internal val SparkleColor2 = Color(0xFF99998C) // rgb(0.6, 0.6, 0.55)
+// Quiet status hues shared by inline tools, grouped rows, and exports.
+internal val ToolCheckColor = Color(0xFF54846B)
+internal val ToolErrorColor = Color(0xFFBD6660)
+internal val ToolCancelColor = Color(0xFFA7803D)
+internal val ToolMemoryAccent = Color(0xFF7C789C)
+internal val SparkleColor1 = Color(0xFF647BAE)
+internal val SparkleColor2 = Color(0xFF7183A8)
 
 // T129: cap photo/video and file pickers at 50 items per launch. Above this
 // count Android's PickMultipleVisualMedia silently truncates anyway, but our
@@ -2980,7 +2978,7 @@ fun ChatScreen(
         topBar = { Column {
             TopAppBar(
                 title = {
-                    // iOS-style centered layout: "Minis" + group row + provider·model row
+                    // Session and model controls stay grouped above the reading column.
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center,
@@ -3028,16 +3026,8 @@ fun ChatScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color.Red.copy(alpha = 0.35f * fallbackPulseAlpha.value))
-                                // [T-android-topbar-shrink] vertical 4dp→2dp.
-                                // Combined with the expandedHeight drop below,
-                                // closes the dead-space gap between the model
-                                // name row and the TopAppBar bottom edge that
-                                // T-topbar-model-row-clip's 76dp overshoot left
-                                // behind. Horizontal 32dp keeps the fallback
-                                // pulse highlight comfortably padded around
-                                // the longest title.
-                                .padding(horizontal = 32.dp, vertical = 2.dp),
+                                .background(MaterialTheme.colorScheme.error.copy(alpha = 0.25f * fallbackPulseAlpha.value))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             // Nav title: current session title when one
                             // exists and the toggle is on, else fall back to
@@ -3061,8 +3051,8 @@ fun ChatScreen(
                             }
                             Text(
                                 text = displayTitle,
-                                fontSize = 16.sp,
-                                lineHeight = 19.sp,
+                                fontSize = 18.sp,
+                                lineHeight = 25.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = ChatColors.primaryText,
                                 maxLines = 1,
@@ -3267,9 +3257,9 @@ fun ChatScreen(
                                             } else {
                                                 modelName.ifEmpty { providerName }
                                             },
-                                            fontSize = 11.sp,
-                                            lineHeight = 13.sp,
-                                            color = ChatColors.tertiaryText,
+                                            fontSize = 12.sp,
+                                            lineHeight = 18.sp,
+                                            color = ChatColors.secondaryText,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                             style = noFontPad,
@@ -3739,23 +3729,10 @@ fun ChatScreen(
                 },
                 windowInsets = WindowInsets.statusBars,
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = ChatColors.background.copy(alpha = 0.92f),
-                    scrolledContainerColor = ChatColors.background.copy(alpha = 0.92f),
+                    containerColor = ChatColors.background,
+                    scrolledContainerColor = ChatColors.background,
                 ),
-                // [T-android-topbar-shrink] 76dp → 68dp. The earlier
-                // T-topbar-model-row-clip fix bumped 60dp → 76dp to give the
-                // 3-row title (14sp/lh17 + 12sp/lh14 + 11sp/lh13 ≈ 44sp text
-                // + 4dp+2dp+1dp vertical padding ≈ 51dp on mdpi, mid-60s on
-                // xxhdpi) room to breathe — but overshot, leaving visible
-                // dead-space below the model row. This trim pairs with the
-                // outer Column's vertical-padding drop (4dp→2dp above):
-                // budget is now ~44sp text + 2dp+2dp+1dp ≈ 49dp typical,
-                // ~58-62dp at xxhdpi 2.625× rounding. 68dp keeps a 6-10dp
-                // safety margin so the model name still fits at any
-                // user-configured font scale on xhdpi/xxhdpi without
-                // re-clipping (T-topbar-model-row-clip regression check).
-                // Font sizes + lineHeights stay untouched per spec.
-                expandedHeight = 68.dp,
+                expandedHeight = 76.dp,
             )
             // [T-port-sched-pill-visible] The REAL session id, read when the
             // pill composes. A new chat opens as a "__new__…" draft and gets
@@ -5874,9 +5851,8 @@ fun ChatScreen(
                                 .padding(horizontal = 12.dp)
                                 // T240: keep a thin visible border instead of the
                                 // diffuse 8dp halo that bled out past the panel edge.
-                                .shadow(elevation = 3.dp, shape = RoundedCornerShape(10.dp))
-                                .background(ChatColors.inputBg, RoundedCornerShape(10.dp))
-                                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(10.dp)),
+                                .background(ChatColors.inputBg, RoundedCornerShape(14.dp))
+                                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(14.dp)),
                         ) {
                             androidx.compose.foundation.lazy.LazyColumn(
                                 state = slashListState,
@@ -6065,9 +6041,8 @@ fun ChatScreen(
                                     },
                                 )
                                 .padding(horizontal = 12.dp)
-                                .shadow(elevation = 8.dp, shape = RoundedCornerShape(10.dp))
-                                .background(ChatColors.inputBg, RoundedCornerShape(10.dp))
-                                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(10.dp)),
+                                .background(ChatColors.inputBg, RoundedCornerShape(14.dp))
+                                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(14.dp)),
                         ) {
                             if (mentionEntries.isEmpty()) {
                                 Row(
@@ -6208,16 +6183,8 @@ fun ChatScreen(
                     }
                 }
 
-                // Input box: iOS-style floating card — no visible border, separated
-                // from the backdrop by a symmetric soft shadow painted by hand
-                // (Android's Modifier.shadow only casts downward).
-                val inputBgArgb = ChatColors.inputBg.toArgb()
-                val shadowPaint = remember(inputBgArgb) {
-                    android.graphics.Paint().apply {
-                        color = inputBgArgb
-                        isAntiAlias = true
-                    }
-                }
+                // One quiet, solid composer panel; insets and gestures remain on
+                // the existing layout so the reading anchors keep their contract.
                 // T185: Move-to-session capsule mirrors iOS
                 // AIChatView.swift:1816 (.overlay(alignment: .topTrailing))
                 // on the input card. We render it as the first child of the
@@ -6349,30 +6316,8 @@ fun ChatScreen(
                                     }
                             } else Modifier,
                         )
-                        .drawBehind {
-                            val radiusPx = 20.dp.toPx()
-                            val canvas = drawContext.canvas.nativeCanvas
-                            // Pass 1: symmetric ambient halo — small blur, low alpha.
-                            shadowPaint.setShadowLayer(
-                                6.dp.toPx(), 0f, 0f,
-                                android.graphics.Color.argb(22, 0, 0, 0),
-                            )
-                            canvas.drawRoundRect(
-                                0f, 0f, size.width, size.height,
-                                radiusPx, radiusPx,
-                                shadowPaint,
-                            )
-                            // Pass 2: soft downward shadow (spot light).
-                            shadowPaint.setShadowLayer(
-                                10.dp.toPx(), 0f, 3.dp.toPx(),
-                                android.graphics.Color.argb(24, 0, 0, 0),
-                            )
-                            canvas.drawRoundRect(
-                                0f, 0f, size.width, size.height,
-                                radiusPx, radiusPx,
-                                shadowPaint,
-                            )
-                        }
+                        .background(ChatColors.inputBg, RoundedCornerShape(28.dp))
+                        .border(0.5.dp, ChatColors.inputBorder, RoundedCornerShape(28.dp))
                         // [T-android-context-usage-hint] Ambient inner glow
                         // along the card's inside edge once the context window
                         // is under pressure. Applied to the composer CARD (not
@@ -6380,7 +6325,7 @@ fun ChatScreen(
                         // glowing, and drawn as a paint pass only — no layout,
                         // no touch interception, so the caret, the +/mic/send
                         // buttons and every hit target are untouched. The
-                        // radius matches the card's own 20.dp corner above.
+                        // radius matches the composer's 28.dp corners.
                         //
                         // Reads `contextUsage`, which refreshes on every usage
                         // chunk, so the colour tracks pressure live rather
@@ -6389,7 +6334,7 @@ fun ChatScreen(
                         // crossfade honours it.
                         .contextUsageGlow(
                             tier = contextUsage?.tier ?: ContextUsage.Tier.NORMAL,
-                            cornerRadius = 20.dp,
+                            cornerRadius = 28.dp,
                             animate = !animationsDisabled(context),
                         )
                         .padding(top = if (attachments.isNotEmpty()) 8.dp else 4.dp),
@@ -6536,9 +6481,8 @@ fun ChatScreen(
                                 // edge lines up with the +/slash button
                                 // column and the typed text below.
                                 .padding(horizontal = 12.dp),
-                            // The chip itself now bakes in 8dp of trailing
-                            // visual room for the remove badge that spills
-                            // past the top-right; no extra spacedBy needed.
+                            // Each chip owns its preview/removal separation
+                            // and trailing spacing; the row adds no extra gap.
                             horizontalArrangement = Arrangement.spacedBy(0.dp),
                         ) {
                             items(attachments, key = { it.id }) { attachment ->
@@ -6737,7 +6681,7 @@ fun ChatScreen(
                         ) {
                             AudioWaveformView(
                                 levels = levels,
-                                barColor = Color.Red.copy(alpha = 0.75f),
+                                barColor = MaterialTheme.colorScheme.error,
                                 heightDp = 28,
                             )
                             if (partial.isNotBlank()) {
@@ -6852,8 +6796,8 @@ fun ChatScreen(
                         LaunchedEffect(imeVisible) {
                             if (imeVisible) onComposerVisit(usageLifecycle.onImeShown())
                         }
-                        val mergedTextStyle = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 16.5.sp * chatInputFontScale,
+                        val mergedTextStyle = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 16.sp * chatInputFontScale,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         // [T-android-enter-to-send-broken] Live read of the
@@ -7266,15 +7210,15 @@ fun ChatScreen(
                                                 UsageHintPageText(
                                                     hint = shownHint,
                                                     page = shownHint.pages().getOrElse((-1 - key) % 2) { UsageHintPage.CONTEXT },
-                                                    fontSize = 16.5.sp * chatInputFontScale,
-                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                                                    fontSize = 16.sp * chatInputFontScale,
+                                                    color = ChatColors.secondaryText,
                                                 )
                                             } else if (poolPage != null && contextUsageHint != null) {
                                                 UsageHintPageText(
                                                     hint = contextUsageHint!!,
                                                     page = poolPage,
-                                                    fontSize = 16.5.sp * chatInputFontScale,
-                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                                                    fontSize = 16.sp * chatInputFontScale,
+                                                    color = ChatColors.secondaryText,
                                                 )
                                             } else {
                                                 Text(
@@ -7282,9 +7226,8 @@ fun ChatScreen(
                                                         ComposerPlaceholderPool.textIndex(key),
                                                         soulName.name,
                                                     ),
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                        .copy(alpha = 0.25f),
-                                                    fontSize = 16.5.sp * chatInputFontScale,
+                                                    color = ChatColors.secondaryText,
+                                                    fontSize = 16.sp * chatInputFontScale,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                 )
@@ -7313,23 +7256,33 @@ fun ChatScreen(
                                     // element.
                                     contentPadding = PaddingValues(
                                         horizontal = 12.dp,
-                                        vertical = 7.dp,
+                                        vertical = 10.dp,
                                     ),
                                 )
                             },
                         )
                     }
 
-                    // Button row below text field (iOS layout: + / ... mic send)
+                    // Reserve the trailing 48dp Send/Stop target before measuring
+                    // secondary actions; wrap those instead of squeezing controls
+                    // in compact windows or at large system font sizes.
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             // T185: 12dp horizontal lines the +/slash and
                             // mic/send icon-button column up with the
                             // attachment row + textfield + Move-to popup.
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.Bottom,
                     ) {
+                        val sttState by com.openminis.app.speech.SpeechRecognitionManager
+                            .state.collectAsState()
+
+                        FlowRow(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
                         // Left: + button (iOS: 34×34 circle, secondary bg)
                         Box {
                             InputCircleButton(
@@ -7390,8 +7343,6 @@ fun ChatScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
-
                         // Left: "/" slash command button (iOS: italic /, bold)
                         InputCircleButton(onClick = {
                             if (viewModel.showSlashMenu.value) {
@@ -7415,11 +7366,10 @@ fun ChatScreen(
                         // AIChatView.swift L1586 editExitButton.
                         val editingId by viewModel.editingMessageId.collectAsState()
                         if (editingId != null) {
-                            Spacer(modifier = Modifier.width(8.dp))
                             Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = ChatColors.inputBg,
-                                modifier = Modifier.clickable {
+                                shape = RoundedCornerShape(10.dp),
+                                color = ChatColors.secondaryBg,
+                                modifier = Modifier.heightIn(min = 48.dp).clickable {
                                     viewModel.cancelEdit()
                                     viewModel.setInputText("")
                                 },
@@ -7433,15 +7383,11 @@ fun ChatScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.weight(1f))
-
                         // Right: Mic button — only renders when a speech engine
                         // is actually available on this device (handles the
                         // AOSP / HarmonyOS / GMS-free case).
                         val sttAvailable by com.openminis.app.speech.SpeechRecognitionManager
                             .isAvailable.collectAsState()
-                        val sttState by com.openminis.app.speech.SpeechRecognitionManager
-                            .state.collectAsState()
                         val sttLocale by com.openminis.app.speech.SpeechRecognitionManager
                             .locale.collectAsState()
                         var showLangSheet by remember { mutableStateOf(false) }
@@ -7455,7 +7401,7 @@ fun ChatScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(48.dp)
                                     .background(ChatColors.inputIconBg, CircleShape)
                                     .border(0.5.dp, ChatColors.inputIconBorder, CircleShape)
                                     .clip(CircleShape)
@@ -7469,7 +7415,6 @@ fun ChatScreen(
                                     color = ChatColors.primaryText,
                                 )
                             }
-                            Spacer(modifier = Modifier.width(6.dp))
                         }
                         if (showLangSheet) {
                             SpeechLanguagePickerSheet(onDismiss = { showLangSheet = false })
@@ -7543,14 +7488,9 @@ fun ChatScreen(
                         // cold launch / new chat removed (was ec95451a). The
                         // composer now always starts in text mode; voice is only
                         // entered when the user taps the mic button below.
-                        // [T-android-voice-panel] "Read replies" TTS toggle —
-                        // shown only while the voice panel is active (mirrors
-                        // iOS readAloudToolbarToggle, 2-state on Android).
-                        // [T-android-edit-readreplies-hide] Hidden while message
-                        // edit mode is active: the Exit-Edit pill lives in the
-                        // same bottom row, and both capsules plus their spacers
-                        // overflow the constrained width and render overlapped
-                        // (iOS af9f3d3e parity).
+                        // Read-replies shares the wrapping secondary-action area
+                        // so its full label remains available at large font sizes.
+                        // Preserve the existing edit-mode visibility policy.
                         if (com.openminis.app.ui.chat.voice.VoiceModePrefs.isVoiceActive && editingId == null) {
                             // [T-android-tts-capsule] Source of truth is the
                             // GLOBAL VoiceOutputState (same "readReplies" pref
@@ -7581,28 +7521,14 @@ fun ChatScreen(
                             DisposableEffect(replyTts) {
                                 onDispose { replyTts.shutdown() }
                             }
-                            // [T-android-read-replies-pill-metrics] Sizing mirrors
-                            // iOS readAloudToolbarToggle: 10/6 padding around a
-                            // 5pt-spaced icon+label, on a capsule that HUGS its
-                            // content (iOS pins it with .fixedSize()).
-                            //
-                            // Two Compose-specific corrections are needed to land
-                            // on the same result:
-                            //  • wrapContentWidth() + centered arrangement — this
-                            //    pill sits between weight(1f) spacers, so without
-                            //    hugging it absorbs slack and the un-arranged Row
-                            //    packed icon+text against the start edge, which is
-                            //    what read as "not horizontally centered".
-                            //  • the label's line height is pinned to the font size
-                            //    and its font padding disabled. Compose Text
-                            //    otherwise reserves the font's full ascent/descent
-                            //    leading on top of the 6dp padding, making the pill
-                            //    visibly taller than iOS's for the same numbers.
+                            // Let the label wrap at the secondary area's available
+                            // width while keeping the entire capsule a 48dp target.
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier
                                     .wrapContentWidth()
+                                    .heightIn(min = 48.dp)
                                     .clip(RoundedCornerShape(50))
                                     .background(
                                         if (ttsEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
@@ -7809,15 +7735,6 @@ fun ChatScreen(
                                     if (!streamingNow && live == null) replyTts.flush()
                                 }
                             }
-                            // [T-android-read-replies-pill-metrics] Balancing
-                            // spacer. There is a weight(1f) spacer BEFORE the
-                            // pill but the trailing side only had a fixed 8dp,
-                            // so all the row's slack collected on the left and
-                            // pushed the pill right of the bar's centre (measured
-                            // +59px on a 1080px screen). Matching weights on both
-                            // sides centre it between the leading (+, /) and
-                            // trailing (keyboard, mic/send) button groups.
-                            Spacer(modifier = Modifier.weight(1f))
                         }
 
                         // [T-android-voice-entry-always-available] The voice /
@@ -7845,6 +7762,7 @@ fun ChatScreen(
                                 onLongClick = { showLangSheet = true },
                                 isVoiceActive = com.openminis.app.ui.chat.voice.VoiceModePrefs.isVoiceActive,
                             )
+                        }
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))

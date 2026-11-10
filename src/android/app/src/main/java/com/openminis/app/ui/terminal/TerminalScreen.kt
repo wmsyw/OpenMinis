@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
@@ -62,10 +63,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.openminis.app.sandbox.TerminalSession
 import com.openminis.app.terminal.MinisOpenUrlBroker
 import com.openminis.app.ui.terminal.canvas.TerminalNativeViewCompose
@@ -74,14 +73,9 @@ import com.openminis.app.ui.terminal.canvas.rememberTerminalInputController
 import com.openminis.app.ui.terminal.emulator.TerminalEmulator
 import kotlinx.coroutines.launch
 
-// iOS-matched palette
-private val TerminalBg = Color(0xFF000000)
-private val TerminalFg = Color(0xFFD4D4D4)
-private val TerminalGreen = Color(0xFF34C759)
-private val AccessoryBg = Color(0xFF1F1F1F)
-private val AccButtonBg = Color(0xFF404040)
-private val AccButtonActive = Color(0xFF007AFF)
-private val TopButtonBg = Color(0xFF2C2C2E)
+// The terminal renderer owns its ANSI palette; only the surrounding chrome
+// follows the app's mist / slate surfaces.
+private val TerminalBg = Color.Black
 
 @Composable
 fun TerminalScreen(
@@ -200,9 +194,10 @@ fun TerminalScreen(
     // already set in the manifest, edge-to-edge enabled, and modern Pixel
     // builds reporting WindowInsets.ime correctly, a plain in-window Box +
     // imePadding does the right thing without any custom tracking.
-    val accessoryBarHeightDp = 40.dp
+    val density = LocalDensity.current
+    var accessoryBarHeightDp by remember { mutableStateOf(64.dp) }
 
-    Box(modifier = Modifier.fillMaxSize().background(TerminalBg)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Main content: top bar + canvas. imePadding() lifts the canvas
         // above the keyboard so it's never covered.
         Column(
@@ -212,8 +207,15 @@ fun TerminalScreen(
                 .imePadding()
                 .padding(bottom = accessoryBarHeightDp),
         ) {
-            Spacer(modifier = Modifier.height(52.dp))
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Spacer(modifier = Modifier.height(64.dp))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(TerminalBg),
+            ) {
                 // T194 part-2: native Android View backing gives us long-press
                 // selection + ActionMode + ClipboardManager copy. The old
                 // TerminalCanvasView is left in the package as a Compose-only
@@ -253,8 +255,8 @@ fun TerminalScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .height(52.dp)
-                .background(TerminalBg),
+                .height(64.dp)
+                .background(MaterialTheme.colorScheme.background),
         ) {
             TerminalTopBar(
                 onClose = {
@@ -282,7 +284,11 @@ fun TerminalScreen(
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .imePadding()
-                .windowInsetsPadding(WindowInsets.navigationBars),
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .onSizeChanged { size ->
+                    accessoryBarHeightDp = with(density) { size.height.toDp() }
+                },
         ) {
             KeyboardAccessoryBar(
                 ctrlActive = ctrlActive,
@@ -334,30 +340,28 @@ private fun TerminalTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(TerminalBg)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CircularIconButton(
             icon = Icons.Default.Close,
             contentDescription = stringResource(R.string.common_close),
-            tint = TerminalFg,
+            tint = MaterialTheme.colorScheme.onSurface,
             onClick = onClose,
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
             stringResource(R.string.terminal_title),
-            color = TerminalFg,
-            style = TextStyle(
-                fontFamily = JetBrainsMonoFontFamily,
-                fontSize = 16.sp,
-            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
         )
         Spacer(modifier = Modifier.weight(1f))
         CircularIconButton(
             icon = Icons.Default.Brush,
             contentDescription = stringResource(R.string.terminal_clear),
-            tint = TerminalGreen,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             onClick = onClear,
         )
     }
@@ -372,9 +376,9 @@ private fun CircularIconButton(
 ) {
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(TopButtonBg)
+            .size(48.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -430,15 +434,15 @@ private fun KeyboardAccessoryBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(AccessoryBg),
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Row(
             modifier = Modifier
                 .horizontalScroll(scrollState)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
         QuickCommandButton(
@@ -481,22 +485,22 @@ private fun QuickCommandButton(
     isActive: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val bg = if (isActive) AccButtonActive else AccButtonBg
-    val fg = if (isActive) Color.White else TerminalGreen
+    val bg = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
+    val fg = if (isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier
-            .height(28.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(10.dp))
             .background(bg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         when {
-            icon != null -> Icon(icon, null, tint = fg, modifier = Modifier.size(12.dp))
-            iconText != null -> Text(iconText, color = fg, style = TextStyle(fontFamily = JetBrainsMonoFontFamily, fontSize = 11.sp))
+            icon != null -> Icon(icon, null, tint = fg, modifier = Modifier.size(18.dp))
+            iconText != null -> Text(iconText, color = fg, style = MaterialTheme.typography.labelLarge)
         }
-        Text(label, color = fg, style = TextStyle(fontFamily = JetBrainsMonoFontFamily, fontSize = 11.sp), maxLines = 1)
+        Text(label, color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }
 }

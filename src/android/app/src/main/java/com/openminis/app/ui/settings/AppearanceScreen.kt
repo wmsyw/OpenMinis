@@ -3,6 +3,7 @@ package com.openminis.app.ui.settings
 import com.openminis.app.R
 import com.openminis.app.data.repository.AppIconRepository
 import com.openminis.app.ui.components.MinisTextButton
+import com.openminis.app.ui.theme.ChatColors
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -27,7 +28,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardReturn
 import androidx.compose.material.icons.automirrored.outlined.Send
@@ -305,11 +305,12 @@ fun AppearanceScreen(
 
     val fontsModified = chatInputLevel != 0 || messageLevel != 0 || appBaseLevel != 0
 
-    val tilePurple = Color(0xFF5856D6)
-    val tileBlue = Color(0xFF007AFF)
-    val tileOrange = Color(0xFFFF9500)
-    val tileGreen = Color(0xFF34C759)
-    val tileTeal = Color(0xFF5AC8FA)
+    // Tonal roles follow the in-app appearance instead of fixed iOS icon colors.
+    val tilePurple = MaterialTheme.colorScheme.tertiary
+    val tileBlue = MaterialTheme.colorScheme.primary
+    val tileOrange = ChatColors.warningText
+    val tileGreen = MaterialTheme.colorScheme.secondary
+    val tileTeal = MaterialTheme.colorScheme.secondary
 
     SettingsScaffold(title = stringResource(R.string.appearance_title), onBack = onBack) {
 
@@ -536,7 +537,7 @@ fun AppearanceScreen(
         ) {
             SettingsSwitchRow(
                 icon = Icons.Outlined.StopCircle,
-                iconColor = Color(0xFFFF3B30),
+                iconColor = MaterialTheme.colorScheme.error,
                 title = stringResource(R.string.appearance_confirm_before_stopping_title),
                 checked = confirmBeforeStopping,
                 onCheckedChange = {
@@ -755,7 +756,7 @@ fun AppearanceScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1f)
-                                .clip(RoundedCornerShape(18.dp))
+                                .clip(MaterialTheme.shapes.large)
                                 .border(
                                     width = if (isSelected) 2.dp else 0.5.dp,
                                     color = if (isSelected) {
@@ -763,7 +764,7 @@ fun AppearanceScreen(
                                     } else {
                                         MaterialTheme.colorScheme.outlineVariant
                                     },
-                                    shape = RoundedCornerShape(18.dp),
+                                    shape = MaterialTheme.shapes.large,
                                 ),
                         ) {
                             Image(
@@ -771,7 +772,7 @@ fun AppearanceScreen(
                                 contentDescription = null,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clip(RoundedCornerShape(18.dp)),
+                                    .clip(MaterialTheme.shapes.large),
                             )
                             if (isSelected) {
                                 Box(

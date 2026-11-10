@@ -1,6 +1,7 @@
 package com.openminis.app.ui.navigation
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -530,6 +531,7 @@ fun ChatSplitScaffold(
     Box(
         Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 if (!event.isCtrlPressed && !event.isMetaPressed) return@onPreviewKeyEvent false
@@ -587,12 +589,8 @@ fun ChatSplitScaffold(
         },
         detailPane = {
             AnimatedPane {
-                // [T-android-tablet-split-gutters] Divider on the detail pane's
-                // leading edge. The two panes differ only by background colour
-                // (#F2F2F7 vs #FFFFFF) and sat pixel-adjacent with no seam, so
-                // in light theme the boundary was nearly invisible. SwiftUI's
-                // NavigationSplitView draws its own separator; ListDetailPane-
-                // Scaffold does not.
+                // A quiet semantic rule separates the sidebar from the detail
+                // without introducing another elevated panel.
                 val sessionId = navigator.currentDestination
                     ?.takeIf { it.pane == ListDetailPaneScaffoldRole.Detail }
                     ?.contentKey
@@ -759,7 +757,10 @@ private fun NoConversationSelected(
     onToggleSidebar: (() -> Unit)? = null,
     sidebarCollapsed: Boolean = false,
 ) {
-    Surface(modifier = Modifier.fillMaxSize()) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
         // The toggle floats over the centred content rather than sitting in a
         // Column above it, so it lands in the same top-left spot as the chat's
         // own — the control must not appear to move when a session opens.
@@ -847,8 +848,8 @@ private fun NoConversationSelected(
                 emojiSp = with(density) { EMPTY_STATE_ICON_SIZE.toSp() * 0.82f },
                 sparkleTint = Brush.linearGradient(
                     colors = listOf(
-                        com.openminis.app.ui.chat.SparkleColor1,
-                        com.openminis.app.ui.chat.SparkleColor2,
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primary,
                     ),
                 ),
             )

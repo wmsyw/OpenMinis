@@ -1,14 +1,17 @@
 package com.openminis.app.ui.sessions
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Router
 import androidx.compose.material.icons.outlined.VpnLock
@@ -28,7 +31,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.openminis.app.R
 import com.openminis.app.network.NetworkAlertCenter
 import com.openminis.app.network.NetworkAlertEvent
@@ -48,6 +50,7 @@ import com.openminis.app.ui.navigation.Routes
  * [onOpen] (a route; a single proxy's editor is opened on that page).
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun NetworkStatusBadges(onOpen: (String) -> Unit) {
     val settings by NetworkHub.settings.collectAsState()
     if (settings.forceDirect || !NetworkStatusMonitor.wanted(settings)) return
@@ -57,7 +60,10 @@ fun NetworkStatusBadges(onOpen: (String) -> Unit) {
     val failing by NetworkAlertCenter.failing.collectAsState()
     val health by NetworkStatusMonitor.proxyHealth.collectAsState()
 
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         if (settings.nodeWanted) {
             val level = NetworkStatusMonitor.tailscaleLevel(
                 ts, applying, lastError, NetworkAlertEvent.Subject.Tailscale in failing,
@@ -84,19 +90,19 @@ private fun Pill(icon: ImageVector, name: String, state: String, color: Color, o
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .background(color.copy(alpha = 0.14f), CircleShape)
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 9.dp, vertical = 2.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$name, $state" },
     ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(10.dp))
-        Spacer(Modifier.size(4.dp))
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.size(6.dp))
         Text(
             name,
-            color = color,
-            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
-            lineHeight = PILL_LINE,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 80.dp),
@@ -104,38 +110,30 @@ private fun Pill(icon: ImageVector, name: String, state: String, color: Color, o
         Text(
             " · $state",
             color = color,
-            fontSize = 10.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
-            lineHeight = PILL_LINE,
             maxLines = 1,
         )
     }
 }
 
-// The title slot's text style is titleLarge (28sp line height): without its
-// own line height a 10sp pill is as tall as the title line.
-private val PILL_LINE = 12.sp
-
-private val Green = Color(0xFF34C759)
-private val Orange = Color(0xFFFF9500)
-private val Red = Color(0xFFFF3B30)
 
 @Composable
 private fun tailscaleDisplay(level: TailscaleLevel): Pair<String, Color> {
     val secondary = MaterialTheme.colorScheme.onSurfaceVariant
     return when (level) {
         TailscaleLevel.CONNECTING -> stringResource(R.string.network_status_connecting) to secondary
-        TailscaleLevel.CONNECTED -> stringResource(R.string.network_status_connected) to Green
-        TailscaleLevel.UNAVAILABLE -> stringResource(R.string.network_badge_unavailable) to Orange
-        TailscaleLevel.NOT_LOGGED_IN -> stringResource(R.string.network_status_not_logged_in) to Orange
-        TailscaleLevel.AWAITING_APPROVAL -> stringResource(R.string.network_badge_awaiting_approval) to Orange
-        TailscaleLevel.NOT_CONNECTED -> stringResource(R.string.network_badge_not_connected) to Red
+        TailscaleLevel.CONNECTED -> stringResource(R.string.network_status_connected) to MaterialTheme.colorScheme.primary
+        TailscaleLevel.UNAVAILABLE -> stringResource(R.string.network_badge_unavailable) to MaterialTheme.colorScheme.error
+        TailscaleLevel.NOT_LOGGED_IN -> stringResource(R.string.network_status_not_logged_in) to MaterialTheme.colorScheme.onSurfaceVariant
+        TailscaleLevel.AWAITING_APPROVAL -> stringResource(R.string.network_badge_awaiting_approval) to MaterialTheme.colorScheme.onSurfaceVariant
+        TailscaleLevel.NOT_CONNECTED -> stringResource(R.string.network_badge_not_connected) to MaterialTheme.colorScheme.error
     }
 }
 
 @Composable
 private fun proxyDisplay(level: ProxyLevel): Pair<String, Color> = when (level) {
-    ProxyLevel.AVAILABLE -> stringResource(R.string.network_badge_available) to Green
+    ProxyLevel.AVAILABLE -> stringResource(R.string.network_badge_available) to MaterialTheme.colorScheme.primary
     ProxyLevel.CHECKING -> stringResource(R.string.network_diagnostics_running) to MaterialTheme.colorScheme.onSurfaceVariant
-    ProxyLevel.UNAVAILABLE -> stringResource(R.string.network_badge_unavailable) to Red
+    ProxyLevel.UNAVAILABLE -> stringResource(R.string.network_badge_unavailable) to MaterialTheme.colorScheme.error
 }

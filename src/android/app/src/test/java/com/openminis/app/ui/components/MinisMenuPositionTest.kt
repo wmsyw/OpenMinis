@@ -1,8 +1,6 @@
 package com.openminis.app.ui.components
 
-import com.openminis.app.ProductionSources
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import androidx.compose.ui.unit.IntOffset
@@ -12,8 +10,7 @@ import androidx.compose.ui.unit.IntSize
 /**
  * [T-android-menu-screen-margin] MinisMenu placement keeps an 8dp screen margin
  * (it used to sit flush against the edge), still honours alignEnd / offset /
- * flip-above, and never inverts the clamp range. [T-android-menu-shadow-clip]
- * its shadow stays inside the Popup window's 8dp reserve.
+ * flip-above, and never inverts the clamp range.
  */
 class MinisMenuPositionTest {
 
@@ -102,16 +99,4 @@ class MinisMenuPositionTest {
         assertEquals((300 - 290) / 2, MinisMenuPosition.clampOrCenter(0, 290, 300, 22)) // max(-12) < margin
     }
 
-    @Test
-    fun `shadow stays inside the Popup window's 8dp reserve`() {
-        val src = ProductionSources.read("ui/components/MinisMenu.kt")
-        assertFalse("no Modifier.shadow halo", src.contains(".shadow("))
-        assertFalse("no 24dp elevation left", Regex("""shadowElevation: Dp = 24\.dp""").containsMatchIn(src))
-        val default = Regex("""shadowElevation: Dp = (\d+)\.dp""").find(src)!!.groupValues[1].toInt()
-        assertTrue("default shadow $default dp <= 8dp", default <= 8)
-        assertTrue(src.contains("val MAX_POPUP_SHADOW_ELEVATION: Dp = 8.dp"))
-        assertTrue("any caller value is capped", src.contains("shadowElevation.coerceAtMost(MinisMenuPosition.MAX_POPUP_SHADOW_ELEVATION)"))
-        assertTrue("margins are 8dp", src.contains("val HORIZONTAL_MARGIN: Dp = 8.dp") && src.contains("val VERTICAL_MARGIN: Dp = 8.dp"))
-        assertTrue("provider delegates to the tested function", src.contains("MinisMenuPosition.compute("))
-    }
 }

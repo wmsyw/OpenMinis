@@ -50,8 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -223,11 +221,13 @@ fun ComposerSendButton(
         }
     }
     val a11yLabel = stringResource(R.string.send_return_mode_a11y_action)
+    // ChatScreen measures this unweighted 48dp target before its wrapping,
+    // weighted secondary actions; do not trade touch size for composer width.
     Box(
         modifier = modifier
-            .size(38.dp)
+            .size(48.dp)
             .background(
-                if (canActivate && !busy) ChatColors.sendButton else ChatColors.sendButtonDisabled,
+                if (canActivate && !busy) ChatColors.sendButton else MaterialTheme.colorScheme.surfaceContainerHighest,
                 CircleShape,
             )
             .clip(CircleShape)
@@ -254,7 +254,7 @@ fun ComposerSendButton(
     ) {
         if (busy) {
             DecorativeSpinner(
-                color = ChatColors.primaryText.copy(alpha = 0.6f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(16.dp),
                 strokeWidth = 1.5.dp,
             )
@@ -262,8 +262,8 @@ fun ComposerSendButton(
             Icon(
                 Icons.Default.ArrowUpward,
                 contentDescription = "Send",
-                tint = if (canActivate) ChatColors.background
-                else ChatColors.primaryText.copy(alpha = 0.5f),
+                tint = if (canActivate) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -380,16 +380,9 @@ private fun ComposerChoiceMenu(
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = false, dismissOnClickOutside = true),
     ) {
-        val shape = RoundedCornerShape(20.dp)
-        // Same surface language as MinisMenu (elevated container in dark,
-        // white in light, launcher-style soft halo, hairline border), with a
-        // touch of translucency so the composer reads through the edges.
-        val container = if (ChatColors.isDark) MaterialTheme.colorScheme.surfaceContainerHigh else Color.White
-        val border = if (ChatColors.isDark) {
-            BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-        } else {
-            BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.05f))
-        }
+        val shape = RoundedCornerShape(14.dp)
+        val container = MaterialTheme.colorScheme.surfaceContainerHigh
+        val border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         Surface(
             modifier = Modifier
                 .graphicsLayer {
@@ -401,17 +394,10 @@ private fun ComposerChoiceMenu(
                     transformOrigin = origin.value
                 }
                 .width(IntrinsicSize.Max)
-                .widthIn(min = 200.dp, max = 280.dp)
-                .shadow(
-                    elevation = 24.dp,
-                    shape = shape,
-                    clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = Color.Black.copy(alpha = 0.35f),
-                ),
+                .widthIn(min = 200.dp, max = 280.dp),
             shape = shape,
-            color = container.copy(alpha = 0.97f),
-            tonalElevation = 3.dp,
+            color = container,
+            tonalElevation = 0.dp,
             border = border,
         ) {
             Column(modifier = Modifier.padding(vertical = 6.dp).selectableGroup()) {
@@ -439,7 +425,7 @@ private fun ReturnModeRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 44.dp)
+            .heightIn(min = 48.dp)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -526,10 +512,11 @@ fun ComposerStopButton(
         }
     }
     val a11yLabel = stringResource(R.string.stop_mode_a11y_action)
+    // Keep the same reserved target as Send when the composer switches state.
     Box(
         modifier = modifier
-            .size(38.dp)
-            .background(Color(0xFFFF3B30), CircleShape)
+            .size(48.dp)
+            .background(ChatColors.sendButton, CircleShape)
             .clip(CircleShape)
             .combinedClickable(
                 onClick = {
@@ -551,7 +538,7 @@ fun ComposerStopButton(
         Icon(
             Icons.Default.Stop,
             contentDescription = contentDescription,
-            tint = Color.White,
+            tint = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size(20.dp),
         )
         ComposerChoiceMenu(

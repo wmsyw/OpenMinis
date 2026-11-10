@@ -31,12 +31,12 @@ import androidx.compose.ui.unit.dp
  * Text input for use inside a [SectionCard]. Wraps a BasicTextField in
  * OutlinedTextFieldDefaults.DecorationBox so we can override contentPadding
  * (the default OutlinedTextField overload doesn't expose it) — needed to
- * shrink the row to [SectionDesign.RowMinHeight] (~44dp) and align the
- * inner glyphs with sibling section content.
+ * retain the standard [SectionDesign.TextFieldMinHeight] and align the inner
+ * glyphs with sibling section content.
  *
- * Borders + container fills are transparent so the surrounding
- * [SectionCard] surface is the only visual boundary. Error state keeps a
- * red border as a recoverable affordance.
+ * The shared control shape is distinct from the surrounding section panel.
+ * A primary focus outline and error outline preserve visible input states;
+ * the resting outline stays transparent inside a settings group.
  *
  * Horizontal contentPadding is 0: every callsite places this field inside
  * a parent ([SettingsCardBlock] or a manually padded Column) that already
@@ -89,13 +89,19 @@ fun SectionTextField(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val colors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = Color.Transparent,
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
         unfocusedBorderColor = Color.Transparent,
         disabledBorderColor = Color.Transparent,
         errorBorderColor = MaterialTheme.colorScheme.error,
         focusedContainerColor = Color.Transparent,
         unfocusedContainerColor = Color.Transparent,
         disabledContainerColor = Color.Transparent,
+        errorContainerColor = Color.Transparent,
+        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        errorPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        cursorColor = MaterialTheme.colorScheme.primary,
+        errorCursorColor = MaterialTheme.colorScheme.error,
     )
     // Horizontal defaults to 0 so glyphs align with sibling section content
     // (parent already adds the 16dp horizontal inset). See T352. Sheet/dialog
@@ -136,7 +142,7 @@ fun SectionTextField(
     }
     Surface(
         color = containerColor ?: SectionDesign.cardColor(),
-        shape = SectionDesign.CardShape,
+        shape = SectionDesign.ControlShape,
         modifier = modifier.fillMaxWidth(),
     ) {
         BasicTextField(
@@ -153,8 +159,13 @@ fun SectionTextField(
                 .then(fieldModifier),
             enabled = enabled,
             readOnly = readOnly,
-            textStyle = mergedTextStyle.copy(color = MaterialTheme.colorScheme.onSurface),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            textStyle = mergedTextStyle.copy(
+                color = if (enabled) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            ),
+            cursorBrush = SolidColor(
+                if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            ),
             visualTransformation = visualTransformation,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
@@ -181,7 +192,7 @@ fun SectionTextField(
                             isError = isError,
                             interactionSource = interactionSource,
                             colors = colors,
-                            shape = SectionDesign.CardShape,
+                            shape = SectionDesign.ControlShape,
                         )
                     },
                 )

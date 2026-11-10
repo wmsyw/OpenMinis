@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
@@ -54,6 +55,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -87,6 +89,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import com.openminis.app.ui.components.MinisTextButton
+import com.openminis.app.ui.theme.ChatColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,9 +119,11 @@ fun FileBrowserScreen(
     BackHandler(enabled = true, onBack = handleBack)
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.filebrowser_title)) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                title = { Text(stringResource(R.string.filebrowser_title), style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = handleBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
@@ -168,10 +173,17 @@ fun FileBrowserScreen(
 
                 state.isEmpty -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
                             Icon(
                                 Icons.Filled.Folder,
                                 contentDescription = null,
@@ -190,7 +202,8 @@ fun FileBrowserScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 4.dp),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(state.items, key = { it.file.absolutePath }) { item ->
                             FileItemRow(
@@ -206,8 +219,6 @@ fun FileBrowserScreen(
                                 onDelete = { deleteTarget = item },
                                 onAddToHome = { source -> webAppSheetSource = source },
                             )
-                            // [T-file-row-polish] The separator starts under the name.
-                            HorizontalDivider(modifier = Modifier.padding(start = ROW_TEXT_START))
                         }
                     }
                 }
@@ -286,7 +297,7 @@ private fun BreadcrumbBar(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(scrollState)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -386,7 +397,7 @@ private fun BreadcrumbCapsule(
     /** Spoken instead of [label] (the `···` capsule). */
     contentDescription: String? = null,
 ) {
-    val shape = RoundedCornerShape(50)
+    val shape = RoundedCornerShape(10.dp)
     Box(
         modifier = Modifier
             .heightIn(min = 48.dp)
@@ -435,7 +446,6 @@ private fun BreadcrumbCapsule(
 private val ROW_PADDING_H = 16.dp
 private val ROW_TILE = 36.dp
 private val ROW_TILE_GAP = 12.dp
-private val ROW_TEXT_START = ROW_PADDING_H + ROW_TILE + ROW_TILE_GAP
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -467,6 +477,8 @@ private fun FileItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .combinedClickable(
                 onClick = onClick,
                 // [T-android-file-context-copy-abs-path] Long-press opens the
@@ -554,9 +566,8 @@ private fun FileItemRow(
 }
 
 /**
- * [T-file-row-polish] The type's glyph on a rounded tile of its color at 15 %
- * (the sidebar's group-icon look, iOS `FileItemRow`). A symlink gets a small
- * orange badge on the tile's corner.
+ * The file type's glyph on a low-saturation tile. Symlinks retain a distinct
+ * corner badge without introducing an unrelated accent.
  */
 @Composable
 private fun FileIconTile(kind: FileIconKind, isSymlink: Boolean) {
@@ -565,7 +576,7 @@ private fun FileIconTile(kind: FileIconKind, isSymlink: Boolean) {
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(tint.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
@@ -578,22 +589,22 @@ private fun FileIconTile(kind: FileIconKind, isSymlink: Boolean) {
                     .offset(x = 3.dp, y = 3.dp)
                     .size(14.dp)
                     .clip(CircleShape)
-                    .background(SYMLINK_BADGE)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer)
                     .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Link, contentDescription = null, modifier = Modifier.size(9.dp), tint = Color.White)
+                Icon(Icons.Filled.Link, contentDescription = null, modifier = Modifier.size(9.dp), tint = MaterialTheme.colorScheme.onTertiaryContainer)
             }
         }
     }
 }
 
-/** A 32 dp round button on a light fill, in a 44 dp touch target. */
+/** A quiet 32 dp action glyph inside a 48 dp touch target. */
 @Composable
 private fun RowActionButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { this.contentDescription = contentDescription },
@@ -603,7 +614,7 @@ private fun RowActionButton(icon: ImageVector, contentDescription: String, onCli
             modifier = Modifier
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -684,8 +695,6 @@ private fun FileRowMenu(
     }
 }
 
-/** iOS's symlink badge: a small orange circle on the tile. */
-private val SYMLINK_BADGE = Color(0xFFFF9800)
 
 /**
  * [T-file-row-polish] What a row's icon tile shows, by extension (any case);
@@ -728,18 +737,18 @@ private fun FileIconKind.icon(): ImageVector = when (this) {
     FileIconKind.OTHER -> Icons.AutoMirrored.Filled.InsertDriveFile
 }
 
-/** Folders take the app accent; files a fixed color per type (iOS tints). */
+/** Shared semantic tones keep file identities readable in both appearances. */
 @Composable
 private fun FileIconKind.tint(): Color = when (this) {
     FileIconKind.FOLDER -> MaterialTheme.colorScheme.primary
-    FileIconKind.CODE -> Color(0xFF9C27B0)
-    FileIconKind.SHELL -> Color(0xFF4CAF50)
-    FileIconKind.IMAGE -> Color(0xFFFF9800)
-    FileIconKind.AUDIO -> Color(0xFFE91E63)
-    FileIconKind.VIDEO -> Color(0xFFF44336)
-    FileIconKind.TEXT, FileIconKind.PDF -> Color(0xFF2196F3)
-    FileIconKind.ARCHIVE -> Color(0xFF795548)
-    FileIconKind.OTHER -> Color(0xFF757575)
+    FileIconKind.CODE -> MaterialTheme.colorScheme.tertiary
+    FileIconKind.SHELL -> MaterialTheme.colorScheme.secondary
+    FileIconKind.IMAGE -> ChatColors.warningText
+    FileIconKind.AUDIO -> MaterialTheme.colorScheme.tertiary
+    FileIconKind.VIDEO -> MaterialTheme.colorScheme.error
+    FileIconKind.TEXT, FileIconKind.PDF -> MaterialTheme.colorScheme.primary
+    FileIconKind.ARCHIVE -> ChatColors.warningText
+    FileIconKind.OTHER -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 @Composable

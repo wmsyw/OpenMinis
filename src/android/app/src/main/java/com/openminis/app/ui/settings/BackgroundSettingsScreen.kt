@@ -57,13 +57,14 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.openminis.app.MinisApp
 import com.openminis.app.R
 import com.openminis.app.power.PowerOptimizationManager
 import com.openminis.app.i18n.uppercaseForDisplay
+import com.openminis.app.ui.components.SectionDesign
+import com.openminis.app.ui.theme.ChatColors
 
 /**
  * T50 settings screen — surfaces the two pieces of background-keep-alive
@@ -168,7 +169,7 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             BgSectionTitle(stringResource(R.string.settings_section_notifications))
             BgToggleRow(
                 icon = Icons.Outlined.NotificationsActive,
-                iconColor = Color(0xFF007AFF),
+                iconColor = MaterialTheme.colorScheme.primary,
                 title = stringResource(R.string.settings_task_notifications),
                 checked = taskNotificationsEnabled,
                 onCheckedChange = { backgroundRepo.setTaskNotificationsEnabled(it) },
@@ -183,7 +184,7 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             Spacer(Modifier.size(8.dp))
             BgToggleRow(
                 icon = Icons.Outlined.Layers,
-                iconColor = Color(0xFF5856D6),
+                iconColor = MaterialTheme.colorScheme.tertiary,
                 title = stringResource(R.string.settings_bg_overlay),
                 // [T-android-overlay-toggle-reflects-intent] Reflect the user's
                 // PERSISTED intent, not the derived ready-state. Previously this
@@ -239,7 +240,7 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             Spacer(Modifier.size(8.dp))
             BgToggleRow(
                 icon = Icons.Outlined.Bolt,
-                iconColor = Color(0xFF34C759),
+                iconColor = MaterialTheme.colorScheme.secondary,
                 title = stringResource(R.string.settings_dynamic_island),
                 checked = dynamicIslandEnabled && dynamicIslandCapable,
                 enabled = dynamicIslandCapable,
@@ -268,7 +269,7 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             Box {
                 BgRow(
                     icon = Icons.Outlined.Timer,
-                    iconColor = Color(0xFFFF9500),
+                    iconColor = ChatColors.warningText,
                     title = stringResource(R.string.settings_scheduled_countdown),
                     subtitle = countdownLabels.getOrNull(scheduledCountdownLead),
                     onClick = { countdownMenu = true },
@@ -294,7 +295,7 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
             BgSectionTitle(stringResource(R.string.battery_opt_section_title))
             BgRow(
                 icon = Icons.Outlined.BatteryFull,
-                iconColor = if (ignoringOptimizations) Color(0xFF34C759) else Color(0xFFFF9500),
+                iconColor = if (ignoringOptimizations) MaterialTheme.colorScheme.secondary else ChatColors.warningText,
                 title = stringResource(R.string.battery_opt_row_title),
                 subtitle = if (ignoringOptimizations) {
                     stringResource(R.string.battery_opt_already_exempt)
@@ -314,7 +315,7 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
                 BgSectionTitle(stringResource(R.string.rom_autostart_section_title))
                 BgRow(
                     icon = Icons.Outlined.PhoneAndroid,
-                    iconColor = Color(0xFFFF9500),
+                    iconColor = ChatColors.warningText,
                     title = stringResource(R.string.rom_autostart_row_title),
                     subtitle = stringResource(
                         R.string.rom_autostart_row_subtitle,
@@ -341,7 +342,7 @@ fun BackgroundSettingsScreen(onBack: () -> Unit) {
 private fun BgSectionTitle(text: String) {
     Text(
         text = text.uppercaseForDisplay(),
-        fontSize = 12.sp,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 6.dp),
     )
@@ -351,7 +352,7 @@ private fun BgSectionTitle(text: String) {
 private fun BgFooter(text: String) {
     Text(
         text = text,
-        fontSize = 12.sp,
+        style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 6.dp),
     )
@@ -373,8 +374,8 @@ private fun BgToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .clip(SectionDesign.CardShape)
+            .background(SectionDesign.cardColor(), SectionDesign.CardShape)
             .clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -396,7 +397,7 @@ private fun BgToggleRow(
         Spacer(Modifier.width(12.dp))
         Text(
             text = title,
-            fontSize = 15.sp,
+            style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = rowAlpha),
             modifier = Modifier.weight(1f),
@@ -421,8 +422,8 @@ private fun BgRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .clip(SectionDesign.CardShape)
+            .background(SectionDesign.cardColor(), SectionDesign.CardShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -445,14 +446,14 @@ private fun BgRow(
         Column(modifier = Modifier.padding(end = 6.dp)) {
             Text(
                 text = title,
-                fontSize = 15.sp,
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (!subtitle.isNullOrEmpty()) {
                 Text(
                     text = subtitle,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

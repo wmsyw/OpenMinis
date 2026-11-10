@@ -379,8 +379,8 @@ private fun BorderedMarkdownTable(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, borderColor, RoundedCornerShape(6.dp))
-                .clip(RoundedCornerShape(6.dp))
+                .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(14.dp))
                 // Capture rendered pixels into a GraphicsLayer so the
                 // Copy Table Image action can materialise the exact
                 // styled table the user sees (cells, borders, header
@@ -605,8 +605,7 @@ internal fun FallbackInfoBlock(block: AssistantBlock, onRevert: (() -> Unit)? = 
                 Text(
                     // [T-in-chat-search] matches painted in place
                     text = com.openminis.app.ui.chat.search.rememberChatSearchHighlighted(block.content, com.openminis.app.ui.chat.search.ChatSearchUnits.BODY),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.labelMedium,
                     color = fg,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -616,14 +615,14 @@ internal fun FallbackInfoBlock(block: AssistantBlock, onRevert: (() -> Unit)? = 
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 if (hasDetail) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Show full summary",
-                        tint = fg,
-                        modifier = Modifier
-                            .size(14.dp)
-                            .clickable { showDetail = true },
-                    )
+                    IconButton(onClick = { showDetail = true }, modifier = Modifier.size(48.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Show full summary",
+                            tint = fg,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
         }.map { it.measure(androidx.compose.ui.unit.Constraints(maxWidth = labelMax)) }
@@ -678,11 +677,9 @@ internal fun isModelSwitchNotice(block: AssistantBlock): Boolean =
         (block.toolTitle == "Switched model" || block.content.lineSequence().any { it.startsWith("⚠️") })
 
 /**
- * iOS `AssistantBlockView` `.info` case: the reason lines (middle elided past
- * nine), then the switched line behind an orange swap icon, all on a faint
- * orange card. Every line is shown, two rows at most each — the divider this
- * replaces held one line, so the failure read "GPT-5.6 Terra: Invalid API
- * key…" with the switch cut off. Long-press copies the whole notice.
+ * Group fallback reasons and the replacement model share a subdued warning
+ * panel. Each reason remains visible (middle elided past nine), and a
+ * long-press still copies the complete notice.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -697,15 +694,15 @@ private fun ModelSwitchNoticeCard(block: AssistantBlock) {
     val switched = remember(lines) {
         lines.firstOrNull { !it.startsWith("⚠️") }?.removePrefix("🔄")?.trim()
     }
-    val orange = Color(0xFFFF9500)
-    val shape = RoundedCornerShape(8.dp)
+    val warning = ChatColors.warningText
+    val shape = RoundedCornerShape(14.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clip(shape)
-            .background(orange.copy(alpha = 0.08f))
-            .border(0.5.dp, orange.copy(alpha = 0.14f), shape)
+            .background(ChatColors.warningBg)
+            .border(1.dp, ChatColors.toolBorder, shape)
             .combinedClickable(
                 onClick = {},
                 onLongClick = {
@@ -719,14 +716,14 @@ private fun ModelSwitchNoticeCard(block: AssistantBlock) {
                     ).show()
                 },
             )
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         for (line in reasons) {
             Text(
                 text = line,
-                fontSize = 10.sp,
-                color = ChatColors.primaryText.copy(alpha = 0.45f),
+                style = MaterialTheme.typography.bodySmall,
+                color = warning,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -739,14 +736,13 @@ private fun ModelSwitchNoticeCard(block: AssistantBlock) {
                 Icon(
                     imageVector = Icons.Default.Sync,
                     contentDescription = null,
-                    tint = orange.copy(alpha = 0.8f),
-                    modifier = Modifier.size(11.dp),
+                    tint = warning,
+                    modifier = Modifier.size(16.dp),
                 )
                 Text(
                     text = switched,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = ChatColors.primaryText.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = ChatColors.primaryText,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -786,7 +782,7 @@ private fun CompactSummarySheet(
                 Icon(
                     imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
                     contentDescription = stringResource(R.string.common_copy),
-                    tint = if (copied) Color(0xFF34C759) else ChatColors.secondaryText,
+                    tint = if (copied) MaterialTheme.colorScheme.tertiary else ChatColors.secondaryText,
                 )
             }
         },
@@ -800,9 +796,8 @@ private fun CompactSummarySheet(
             ) {
                 Text(
                     text = summary,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = ChatColors.primaryText,
-                    lineHeight = 20.sp,
                 )
             }
             if (onRevert != null) {
@@ -1006,17 +1001,13 @@ internal fun rememberBrowserLiveSnapshot(
  * with persisted-but-incomplete history) and is resumable. Mirrors iOS
  * `resumeBanner` in `CollectionViewMessageListV3.swift:360`:
  *
- *   - orange-tinted rounded rectangle background
- *   - leading "pause" icon + secondary text on the left
- *   - trailing orange-capsule "Resume" button
- *
- * Uses iOS systemOrange (`#FF9F0A` dark / `#FF9500` light flatten to
- * a single mid value, since it sits over a low-alpha tint and reads
- * the same on both themes).
+ *   - neutral rounded panel with a semantic warning marker
+ *   - readable secondary context on the left
+ *   - trailing primary Resume button with a 48dp touch target
  */
 @Composable
 internal fun ResumeBanner(onResume: () -> Unit) {
-    val orange = Color(0xFFFF9500)
+    val warning = ChatColors.warningText
     // [T-android-c3a-resume-one-tap] Crash-aware resume. When the previous app
     // cycle ended in crash_or_stall we surface a one-line warning as CONTEXT
     // (the user is about to re-enter the load that killed the last cycle), but
@@ -1029,9 +1020,9 @@ internal fun ResumeBanner(onResume: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(orange.copy(alpha = 0.08f))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .clip(RoundedCornerShape(14.dp))
+            .background(ChatColors.toolBg)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
@@ -1041,8 +1032,8 @@ internal fun ResumeBanner(onResume: () -> Unit) {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = null,
-                tint = orange,
-                modifier = Modifier.size(12.dp),
+                tint = warning,
+                modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
@@ -1051,30 +1042,30 @@ internal fun ResumeBanner(onResume: () -> Unit) {
                 } else {
                     stringResource(R.string.resume_banner_title)
                 },
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = if (showCrashWarning) MaterialTheme.colorScheme.error else ChatColors.secondaryText,
             )
         }
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(orange)
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.primary)
                 .clickable(onClick = { onResume() })
-                .padding(horizontal = 10.dp, vertical = 3.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(10.dp),
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = stringResource(R.string.resume_action),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimary,
             )
         }
     }
@@ -1112,7 +1103,7 @@ internal fun SwipeToSendHint(
     if (progress <= 0f) return
     val palette = ChatColors
     val chipBg = palette.sendButton
-    val chipFg = palette.background
+    val chipFg = MaterialTheme.colorScheme.onPrimary
     // Capsule full opacity at `armFraction`. Linear from
     // `armFraction - 0.4` -> `armFraction`.
     val capsuleStart = (armFraction - 0.4f).coerceAtLeast(0f)

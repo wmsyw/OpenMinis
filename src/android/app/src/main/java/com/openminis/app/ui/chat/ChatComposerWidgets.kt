@@ -288,24 +288,19 @@ internal fun AttachmentChip(
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
 ) {
-    // iOS UserAttachmentList parity: 64dp chip + xmark.circle.fill remove
-    // badge at the top-right that sits HALF on the chip and HALF outside
-    // (a 20dp circle offset by -6dp / -6dp). The outer Box is sized 72dp
-    // so the badge isn't clipped; the chip itself stays exactly 64dp,
-    // padded into the Box at TopStart.
-    val chipShape = RoundedCornerShape(8.dp)
-    // Outer Box gives the badge room to "spill out" past the chip's
-    // top-right corner without being clipped: chip is 64dp at TopStart,
-    // badge is 20dp at TopEnd, so the outer needs 64 + half(badge) ≈ 72dp
-    // wide and ≈ 70dp tall.
-    Box(modifier = Modifier.size(width = 72.dp, height = 70.dp)) {
+    // Preview and removal own disjoint bounds, including inside the LazyRow.
+    // Keep 8dp between actions and after each item so adjacent chips cannot
+    // overlap the 48dp removal target.
+    val chipShape = RoundedCornerShape(10.dp)
+    Row(
+        modifier = Modifier.padding(end = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
                 .size(64.dp)
-                // Tap the chip body (NOT the remove badge — that lives in
-                // the outer Box) to preview the attachment, mirroring iOS
-                // InputAttachmentTile.onTapGesture in AIChatView.swift:3699.
+                // The entire thumbnail remains the primary preview target.
                 .clip(chipShape)
                 .combinedClickable(
                     onClick = onClick,
@@ -341,7 +336,7 @@ internal fun AttachmentChip(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = attachment.fileName,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -350,15 +345,10 @@ internal fun AttachmentChip(
                 }
             }
         }
-        // Remove badge (iOS: xmark.circle.fill at the chip's top-right
-        // corner, sitting half on / half off the thumbnail). Hairline
-        // border keeps the badge readable against image content.
+        // A separate full-size action, never layered over the preview.
         Box(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(20.dp)
-                .background(MaterialTheme.colorScheme.surface, CircleShape)
-                .border(0.5.dp, ChatColors.thumbnailBorder, CircleShape)
+                .size(48.dp)
                 .clip(CircleShape)
                 .clickable(onClick = onRemove),
             contentAlignment = Alignment.Center,
@@ -366,14 +356,18 @@ internal fun AttachmentChip(
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Remove",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                modifier = Modifier.size(13.dp),
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .size(20.dp)
+                    .background(MaterialTheme.colorScheme.surface, CircleShape)
+                    .border(0.5.dp, ChatColors.thumbnailBorder, CircleShape)
+                    .padding(3.dp),
             )
         }
     }
 }
 
-// ─── Input Circle Button (iOS: 34×34 circle, secondary bg + border) ─────────
+// ─── Composer controls: neutral surfaces with native touch targets ───────
 
 @Composable
 internal fun InputCircleButton(
@@ -382,9 +376,8 @@ internal fun InputCircleButton(
 ) {
     Box(
         modifier = Modifier
-            .size(38.dp)
+            .size(48.dp)
             .background(ChatColors.inputIconBg, CircleShape)
-            .border(0.5.dp, ChatColors.inputIconBorder, CircleShape)
             .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -411,14 +404,14 @@ internal fun MicButton(
     // slot switches back to text input — keyboard glyph (mirrors iOS "T").
     isVoiceActive: Boolean = false,
 ) {
-    val bg = if (isRecording) Color.Red.copy(alpha = 0.15f)
+    val bg = if (isRecording) MaterialTheme.colorScheme.errorContainer
              else ChatColors.inputIconBg
-    val tint = if (isRecording) Color.Red
+    val tint = if (isRecording) MaterialTheme.colorScheme.onErrorContainer
                else MaterialTheme.colorScheme.onSurfaceVariant
     val borderColor = if (isRecording) Color.Transparent else ChatColors.inputIconBorder
     Box(
         modifier = Modifier
-            .size(38.dp)
+            .size(48.dp)
             .background(bg, CircleShape)
             .border(0.5.dp, borderColor, CircleShape)
             .clip(CircleShape)
@@ -440,11 +433,11 @@ internal fun MicButton(
                 text = localeBadge,
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Red,
+                color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 2.dp, end = 2.dp)
-                    .background(Color.White, CircleShape)
+                    .background(MaterialTheme.colorScheme.errorContainer, CircleShape)
                     .padding(horizontal = 3.dp, vertical = 1.dp),
             )
         }
@@ -574,7 +567,7 @@ private fun ToolPreviewThumbnail(
         block.toolStatus == ToolBlockStatus.PENDING
     val resourceMonitor = rememberSystemResourceMonitor(active = isShellTool && isLive)
 
-    val thumbnailShape = RoundedCornerShape(8.dp)
+    val thumbnailShape = RoundedCornerShape(14.dp)
     // [T-android-agent-thumbnail-accent] A sub agent's tile is marked while
     // the child is inside a tool — the tap goes to work happening one level
     // down, not to the parent's own tool. Same predicate iOS
@@ -597,91 +590,22 @@ private fun ToolPreviewThumbnail(
     Box(
         modifier = Modifier
             .size(width = 100.dp, height = 65.dp)
-            .shadow(elevation = 10.dp, shape = thumbnailShape, ambientColor = Color.Black.copy(alpha = 0.15f), spotColor = Color.Black.copy(alpha = 0.25f))
             .clip(thumbnailShape)
-            .background(
-                when (block.toolName) {
-                    "file_read", "file_write" -> ChatColors.secondaryBg
-                    "file_edit" -> Color(0xFF1A1A1E)
-                    else -> Color(0xFF1A1A1E)
-                }
-            )
+            .background(ChatColors.codeBlockBg)
             .border(0.5.dp, ChatColors.thumbnailBorder, thumbnailShape)
             .drawWithContent {
                 drawContent()
                 if (!subAgentLive) return@drawWithContent
-                // An INNER glow: concentric strokes walking inward from the
-                // edge, drawn after the content and inside the clip so the
-                // preview stays legible and the rounded corners are not
-                // smeared square. Hand-drawn because Modifier.blur needs API
-                // 31 and minSdk here is lower.
-                //
-                // [T-android-agent-glow-soften] Reworked from the original
-                // port of iOS's 6pt/0.55-alpha inset stroke, which on a 100x65
-                // tile read as a hard bright ring hugging the rim rather than
-                // a glow. Three changes, all pulling the same direction:
-                //
-                //   band  10dp -> 22dp   reaches a third of the way into the
-                //                        tile's short side, so the colour
-                //                        diffuses instead of outlining.
-                //   alpha 0.55  -> 0.22  the peak sits at the very edge, where
-                //                        it also overlaps the hairline border,
-                //                        so it was the most saturated part of
-                //                        the whole tile.
-                //   falloff (1-t)^2 -> (1-t)^3
-                //                        a cubic curve spends less of its
-                //                        opacity near the edge and carries a
-                //                        faint tail further in, which is what
-                //                        makes a wide band read as diffuse
-                //                        rather than as a thicker ring.
-                //
-                // Strokes overlap: each is drawn 2x the spacing. Ring n and
-                // ring n+1 sit `step` apart on the axes but `step * sqrt(2)`
-                // apart along the diagonals, so equal-width strokes leave a
-                // ~0.2dp gap at every corner and the glow bands there. The 10dp
-                // band was opaque enough to hide it; a 22dp one is not.
-                //
-                // Overlapping doubles how much colour each pixel receives, so
-                // the peak alpha is halved to 0.11 to pay for it — the tuning
-                // target is the INTEGRAL over the band, not the per-stroke
-                // value.
-                //
-                // The corner radius stays `radius - inset`, floored at zero.
-                // That is not an approximation to fix: a rounded rect inset by
-                // more than its own radius genuinely has square corners, and
-                // every ring is concentric with the tile because the offset
-                // from each edge is constant. (Scaling the radius
-                // proportionally instead was tried and is wrong — it bulges the
-                // corners outward by up to 5dp mid-band and draws visible arcs.)
-                // [T-android-agent-glow-32dp] Band widened 22dp -> 32dp on
-                // request: the visible tint now reaches ~15dp in instead of
-                // ~11dp. On the 65dp tile the top and bottom bands meet in the
-                // middle (2 x 32 = 64dp), so the tint covers the whole height
-                // and fades to near zero at the centre line. Peak alpha and the
-                // cubic falloff are unchanged, so the edge is no brighter.
-                val band = 32.dp.toPx()
-                val step = 0.5.dp.toPx()
-                val radius = 8.dp.toPx()
-                var inset = 0f
-                while (inset < band) {
-                    val t = inset / band
-                    val fade = (1f - t)
-                    val alpha = 0.11f * fade * fade * fade
-                    val w = size.width - inset * 2
-                    val h = size.height - inset * 2
-                    // Stop before the rect degenerates. A 32dp band just clears
-                    // the 65dp tile this draws on today, but the size comes from
-                    // the layout and is not this draw's to assume.
-                    if (w <= 0f || h <= 0f) break
-                    drawRoundRect(
-                        color = subAgentGlow.copy(alpha = alpha),
-                        topLeft = Offset(inset, inset),
-                        size = Size(w, h),
-                        cornerRadius = CornerRadius((radius - inset).coerceAtLeast(0f)),
-                        style = Stroke(width = step * 2f),
-                    )
-                    inset += step
-                }
+                // A single inset rule marks live child work without a blur
+                // layer or repeated glow passes over the miniature content.
+                val inset = 1.dp.toPx()
+                drawRoundRect(
+                    color = subAgentGlow.copy(alpha = 0.65f),
+                    topLeft = Offset(inset, inset),
+                    size = Size(size.width - inset * 2, size.height - inset * 2),
+                    cornerRadius = CornerRadius(13.dp.toPx()),
+                    style = Stroke(width = 1.dp.toPx()),
+                )
             }
             .then(
                 if (onLongClick == null) Modifier.clickable(onClick = onClick)
@@ -690,7 +614,7 @@ private fun ToolPreviewThumbnail(
     ) {
         when (block.toolName) {
             "shell_execute" -> {
-                // iOS: command title + last 12 lines of output in green mono
+                // A miniature of the same neutral code well used in details.
                 val command = extractShellCommand(args, block)
                 Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)) {
                     Text(
@@ -701,7 +625,7 @@ private fun ToolPreviewThumbnail(
                         lineHeight = 8.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = ChatColors.secondaryText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -716,7 +640,7 @@ private fun ToolPreviewThumbnail(
                             text = remember(block.content) { ToolTextTail.lastLines(block.content, 12) },
                             fontSize = 5.5.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = toolAccent.copy(alpha = 0.85f),
+                            color = ChatColors.codeBlockText,
                             maxLines = 12,
                             lineHeight = 6.5.sp,
                         )
@@ -737,7 +661,7 @@ private fun ToolPreviewThumbnail(
                                 text = "- $line",
                                 fontSize = 5.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = Color(0xFFFF6B6B),
+                                color = MaterialTheme.colorScheme.error,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 lineHeight = 6.sp,
@@ -750,7 +674,7 @@ private fun ToolPreviewThumbnail(
                                 text = "+ $line",
                                 fontSize = 5.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF4ADE80),
+                                color = ToolCheckColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 lineHeight = 6.sp,
@@ -800,7 +724,7 @@ private fun ToolPreviewThumbnail(
                             text = remember(displayText) { ToolTextTail.lastLines(displayText, 12) },
                             fontSize = 5.5.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = toolAccent.copy(alpha = 0.85f),
+                            color = ChatColors.codeBlockText,
                             maxLines = 12,
                             lineHeight = 6.5.sp,
                         )
@@ -835,7 +759,7 @@ private fun ToolPreviewThumbnail(
                         lineHeight = 8.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
-                        color = ToolMemoryAccent.copy(alpha = 0.75f),
+                        color = ChatColors.secondaryText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -844,7 +768,7 @@ private fun ToolPreviewThumbnail(
                             text = remember(displayText) { ToolTextTail.lastLines(displayText, 12) },
                             fontSize = 5.5.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = toolAccent.copy(alpha = 0.85f),
+                            color = ChatColors.codeBlockText,
                             maxLines = 12,
                             lineHeight = 6.5.sp,
                         )
@@ -972,18 +896,15 @@ private fun ToolPreviewThumbnail(
             else -> GenericThumbContent(block, toolAccent)
         }
 
-        // T141: live CPU/MEM HUD ribbon. Sits at the thumbnail's bottom edge,
-        // matching the iOS small-overlay parity (ToolLiveSheet.swift:1926):
-        // 5sp monospace, white at 80% alpha, on a black-60% background with
-        // bottom-rounded corners that line up with the parent thumbnailShape.
+        // Resource metadata remains pinned to the thumbnail's lower edge.
         if (isShellTool && isLive) {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .heightIn(max = 10.dp)
-                    .clip(RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
+                    .background(ChatColors.secondaryBg)
                     .padding(vertical = 1.dp),
                 horizontalArrangement = Arrangement.Center,
             ) {
@@ -993,7 +914,7 @@ private fun ToolPreviewThumbnail(
                     lineHeight = 8.sp,
                     fontWeight = FontWeight.Medium,
                     fontFamily = FontFamily.Monospace,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = ChatColors.secondaryText,
                 )
             }
         }
@@ -1130,9 +1051,8 @@ internal fun FloatingToolStatusBar(
                 .fillMaxWidth()
                 .height(barHeight)
                 .align(Alignment.BottomCenter)
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(10.dp), ambientColor = Color.Black.copy(alpha = 0.06f), spotColor = Color.Black.copy(alpha = 0.12f))
-                .background(ChatColors.inputBg, RoundedCornerShape(10.dp))
-                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(10.dp))
+                .background(ChatColors.inputBg, RoundedCornerShape(14.dp))
+                .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(14.dp))
                 .padding(start = barStartPadding, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -1341,7 +1261,7 @@ internal fun ThinkingLevelPicker(
     // up-arrow, signalling "your setting is higher, this model caps here".
     val maxAvailable = availableLevels.lastOrNull { it != ThinkingLevel.OFF }
     val isClamped = current.isEnabled && maxAvailable != null && current.rank > maxAvailable.rank
-    val clampOrange = Color(0xFFFF9500)
+    val clampOrange = ChatColors.warningText
     Row(
         modifier = Modifier
             .background(
@@ -1357,19 +1277,16 @@ internal fun ThinkingLevelPicker(
             val isClampedHighlight = isClamped && level == maxAvailable
             val isHighlighted = isExactMatch || isClampedHighlight
             val bg = when {
-                // [T-android-thinking-picker-ui] Clamped tier → orange; normal
-                // selection → blue (ChatColors.thinking, the theme-adaptive
-                // system blue 007AFF/0A84FF), matching iOS's Color.blue. The
-                // old ChatColors.sendButton was black in light / white in dark,
-                // so the selected capsule read as unselected. (OFF no longer
-                // appears in availableLevels, so its former branch is gone.)
-                isClampedHighlight -> clampOrange.copy(alpha = 0.75f)
-                isHighlighted -> ChatColors.thinking
+                // A capped level keeps a distinct warning role and up-arrow.
+                isClampedHighlight -> ChatColors.warningBg
+                isHighlighted -> MaterialTheme.colorScheme.primary
                 else -> Color.Transparent
             }
-            // White text on both the blue and orange fills (readable in both
-            // themes); grey when unselected.
-            val fg = if (isHighlighted) Color.White else ChatColors.secondaryText
+            val fg = when {
+                isClampedHighlight -> clampOrange
+                isHighlighted -> MaterialTheme.colorScheme.onPrimary
+                else -> ChatColors.secondaryText
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier

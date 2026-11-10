@@ -13,6 +13,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -36,7 +39,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -60,7 +62,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.FolderOff
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PushPin
@@ -152,6 +153,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
@@ -181,7 +183,6 @@ import com.openminis.app.R
 import com.openminis.app.data.db.ChatSessionEntity
 import com.openminis.app.data.db.FolderEntity
 import com.openminis.app.ui.theme.ChatColors
-import com.openminis.app.ui.theme.minisFabColor
 import com.openminis.app.data.repository.ChatRepository
 import com.openminis.app.data.repository.ProviderRepository
 import kotlin.math.roundToInt
@@ -196,31 +197,26 @@ import com.openminis.app.ui.components.rememberDecorativeTick
 import com.openminis.app.ui.components.decorativePhase
 import androidx.compose.ui.graphics.graphicsLayer
 
-// FAB color — use shared theme values
-
-private data class CategoryStyle(val icon: ImageVector, val color: Color)
 
 // 16 categories matching iOS (ContentView.swift:1897-1916)
-private fun categoryStyle(category: String?): CategoryStyle {
-    return when (category?.lowercase()) {
-        "code"         -> CategoryStyle(Icons.Outlined.Code, Color(0xFFF09A37))
-        "writing"      -> CategoryStyle(Icons.Outlined.Description, Color(0xFF3478F6))
-        "research"     -> CategoryStyle(Icons.Outlined.Language, Color(0xFF30B0C7))
-        "analysis"     -> CategoryStyle(Icons.Outlined.BarChart, Color(0xFF5856D6))
-        "creative"     -> CategoryStyle(Icons.Outlined.Brush, Color(0xFFFF2D55))
-        "chat"         -> CategoryStyle(Icons.Outlined.Forum, Color(0xFF34C759))
-        "math"         -> CategoryStyle(Icons.Outlined.Calculate, Color(0xFF9B59B6))
-        "translation"  -> CategoryStyle(Icons.Outlined.Translate, Color(0xFF00BCD4))
-        "health"       -> CategoryStyle(Icons.Outlined.Favorite, Color(0xFFFF3B30))
-        "finance"      -> CategoryStyle(Icons.Outlined.Payments, Color(0xFF00C7BE))
-        "travel"       -> CategoryStyle(Icons.Outlined.Map, Color(0xFFF09A37))
-        "education"    -> CategoryStyle(Icons.Outlined.Book, Color(0xFF3478F6))
-        "design"       -> CategoryStyle(Icons.Outlined.Palette, Color(0xFFFF2D55))
-        "productivity" -> CategoryStyle(Icons.Outlined.CalendarMonth, Color(0xFFFFCC00))
-        "support"      -> CategoryStyle(Icons.Outlined.Settings, Color(0xFF8B6914))
-        "other"        -> CategoryStyle(Icons.Outlined.GridView, Color(0xFF8E8E93))
-        else           -> CategoryStyle(Icons.Outlined.Forum, Color(0xFF8E8E93))
-    }
+private fun categoryStyle(category: String?): ImageVector = when (category?.lowercase()) {
+    "code"         -> Icons.Outlined.Code
+    "writing"      -> Icons.Outlined.Description
+    "research"     -> Icons.Outlined.Language
+    "analysis"     -> Icons.Outlined.BarChart
+    "creative"     -> Icons.Outlined.Brush
+    "chat"         -> Icons.Outlined.Forum
+    "math"         -> Icons.Outlined.Calculate
+    "translation"  -> Icons.Outlined.Translate
+    "health"       -> Icons.Outlined.Favorite
+    "finance"      -> Icons.Outlined.Payments
+    "travel"       -> Icons.Outlined.Map
+    "education"    -> Icons.Outlined.Book
+    "design"       -> Icons.Outlined.Palette
+    "productivity" -> Icons.Outlined.CalendarMonth
+    "support"      -> Icons.Outlined.Settings
+    "other"        -> Icons.Outlined.GridView
+    else           -> Icons.Outlined.Forum
 }
 
 // Date period for section grouping (matching iOS)
@@ -691,7 +687,6 @@ fun SessionListScreen(
     // doesn't flash the "add a provider" onboarding before the real config emits.
     val configLoaded by providerRepository.configLoaded.collectAsState()
     val scope = rememberCoroutineScope()
-    val isDark = ChatColors.isDark
 
     // [T-android-search-focus-sticky] When the user opens search but types
     // nothing (or only whitespace) and then navigates into a chat, the
@@ -968,6 +963,10 @@ fun SessionListScreen(
         .homeBadgeCount(scheduledTaskCount, showScheduledBadge)
 
     Scaffold(
+        // Resize the whole scaffold so both its toolbar and list stay above
+        // the IME; inset consumption prevents adding navigation space twice.
+        modifier = Modifier.imePadding(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -977,18 +976,27 @@ fun SessionListScreen(
                                 stringResource(R.string.sessionlist_select_title)
                             else
                                 stringResource(R.string.sessionlist_n_selected, selectedIds.size),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleLarge,
                         )
                     } else {
                         Column {
-                            Text(
-                                stringResource(R.string.app_name),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
-                            )
-                            // [FEAT-261021-07] Tailscale / proxy state; nothing when neither is set up.
-                            NetworkStatusBadges(onOpen = onNetworkPageClick)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(26.dp),
+                                )
+                                Text(
+                                    stringResource(R.string.app_name),
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleLarge,
+                                )
+                            }
                         }
                     }
                 },
@@ -996,22 +1004,6 @@ fun SessionListScreen(
                     if (isSelecting) {
                         MinisTextButton(onClick = { viewModel.clearSelection() }) {
                             Text(stringResource(R.string.cancel))
-                        }
-                    } else {
-                        // [T-update-channels] Beta only: the update badge's
-                        // third layer, derived - no state of its own.
-                        val updateBadge by com.openminis.app.data.UpdateStateStore.hasUpdateBadge.collectAsState()
-                        val updateChannel by com.openminis.app.data.UpdateStateStore.channel.collectAsState()
-                        // [T-android-badge-clip] Badge outside the button's clip.
-                        com.openminis.app.ui.components.BadgedIconButton(
-                            onClick = onSettingsClick,
-                            badge = if (com.openminis.app.data.UpdatePolicy.hasHomeBadge(updateBadge, updateChannel)) {
-                                { Badge() }
-                            } else {
-                                null
-                            },
-                        ) {
-                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.sessionlist_settings))
                         }
                     }
                 },
@@ -1028,7 +1020,25 @@ fun SessionListScreen(
                                 )
                             )
                         }
-                    } else {
+                    }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background,
+                ),
+            )
+        },
+        bottomBar = {
+            if (!isSelecting) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                         // [T-android-scheduled-tasks-design] Scheduled-tasks entry,
                         // sits to the left of the Shell button on the home toolbar.
                         // [T-android-scheduled-tasks-full] Badge shows the count of
@@ -1115,16 +1125,31 @@ fun SessionListScreen(
                                 )
                             }
                         }
-                    }
-                },
-            )
+                    Spacer(Modifier.weight(1f))
+                        // [T-update-channels] Beta only: the update badge's
+                        // third layer, derived - no state of its own.
+                        val updateBadge by com.openminis.app.data.UpdateStateStore.hasUpdateBadge.collectAsState()
+                        val updateChannel by com.openminis.app.data.UpdateStateStore.channel.collectAsState()
+                        // [T-android-badge-clip] Badge outside the button's clip.
+                        com.openminis.app.ui.components.BadgedIconButton(
+                            onClick = onSettingsClick,
+                            badge = if (com.openminis.app.data.UpdatePolicy.hasHomeBadge(updateBadge, updateChannel)) {
+                                { Badge() }
+                            } else {
+                                null
+                            },
+                        ) {
+                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.sessionlist_settings))
+                        }
+                }
+            }
         },
-        // No default FAB — we draw dual FABs manually at bottom
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
+                .consumeWindowInsets(padding),
         ) {
             // Main content — render an empty frame until the first DB
             // emission lands. Otherwise `sessions.isEmpty()` reads true for
@@ -1133,6 +1158,54 @@ fun SessionListScreen(
             // iOS `didInitialLoad` on ContentView. The transition is usually
             // sub-200ms, so no spinner.
             if (isInitialLoadComplete) Column(modifier = Modifier.fillMaxSize()) {
+                if (!isSelecting) {
+                    Box(Modifier.padding(horizontal = 16.dp)) {
+                        NetworkStatusBadges(onOpen = onNetworkPageClick)
+                    }
+                }
+                if (!isSelecting && hasProviders && (sessions.isNotEmpty() || isSearchActive)) {
+                DualFabRow(
+                    isSearchActive = isSearchActive,
+                    searchQuery = searchQuery,
+                    isSearching = isSearching,
+                    hasSessions = sessions.isNotEmpty() || isSearchActive,
+                    onNewChat = {
+                        scope.launch {
+                            val sessionId = viewModel.createNewSession()
+                            if (sessionId != null) onNewChatGuarded(sessionId)
+                        }
+                    },
+                    onNewChatWithGroup = { groupId ->
+                        scope.launch {
+                            val sessionId = viewModel.createNewSession(groupId = groupId)
+                            if (sessionId != null) onNewChatGuarded(sessionId)
+                        }
+                    },
+                    modelGroups = providerConfig.modelGroups,
+                    onSearchToggle = {
+                        if (isSearchActive) {
+                            viewModel.searchQuery.value = ""
+                            viewModel.isSearchActive.value = false
+                        } else {
+                            viewModel.isSearchActive.value = true
+                        }
+                    },
+                    onSearchQueryChange = { viewModel.searchQuery.value = it },
+                    onSearchDismiss = {
+                        viewModel.searchQuery.value = ""
+                        viewModel.isSearchActive.value = false
+                    },
+                )
+                }
+                // The mini-bar shares the list's measured viewport, below the
+                // persistent actions even while the search field animates.
+                // Clip its slide animation so it cannot cross into that header.
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clipToBounds(),
+                ) {
                 // [T-search-folder-expand] A folder whose name matched is a result
                 // even with no member: the list shows it rather than "no results".
                 if (sessions.isEmpty() && !(searchResultsActive && folderBlocks.isNotEmpty())) {
@@ -1180,8 +1253,7 @@ fun SessionListScreen(
                         // the new-session autoscroll effect above can drive it.
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        // Leave space for bottom FAB row
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LIST_GUTTER),
                     ) {
                         // T25: search-active path used to flatten the list and skip
                         // section headers entirely. Now reuses the same grouped
@@ -1237,7 +1309,7 @@ fun SessionListScreen(
                                         .clip(
                                             if (isLast) {
                                                 RoundedCornerShape(
-                                                    bottomStart = 16.dp, bottomEnd = 16.dp,
+                                                    bottomStart = 20.dp, bottomEnd = 20.dp,
                                                 )
                                             } else {
                                                 RoundedCornerShape(0.dp)
@@ -1300,7 +1372,7 @@ fun SessionListScreen(
                                     // group would show no highlight at all.
                                     rowBackground = when {
                                         session.id == selectedSessionId ->
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                            MaterialTheme.colorScheme.primaryContainer
                                         inFolder -> Color.Transparent
                                         else -> null
                                     },
@@ -1411,7 +1483,6 @@ fun SessionListScreen(
                         }
                     }
                 }
-            }
 
             // [T-android-folder-minibar] Floating quick-nav capsule (iOS
             // folderMiniBar): appears when the expanded group's header scrolls
@@ -1423,7 +1494,10 @@ fun SessionListScreen(
                 var lastBar by remember { mutableStateOf<FolderGroupBlock?>(null) }
                 miniBarBlock?.let { lastBar = it }
                 val bar = lastBar
-                AnimatedVisibility(
+                // Fully qualified top-level overload: the unqualified name
+                // resolves to the outer ColumnScope extension, which this
+                // BoxScope receiver cannot call.
+                androidx.compose.animation.AnimatedVisibility(
                     visible = miniBarBlock != null,
                     enter = slideInVertically(tween(200)) { -it } + fadeIn(tween(200)),
                     exit = slideOutVertically(tween(200)) { -it } + fadeOut(tween(200)),
@@ -1434,17 +1508,11 @@ fun SessionListScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .padding(top = 8.dp, start = 24.dp, end = 24.dp)
+                                .padding(top = 8.dp, start = 16.dp, end = 16.dp)
                                 .widthIn(max = 320.dp)
-                                .height(48.dp)
-                                .shadow(8.dp, RoundedCornerShape(24.dp))
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                                .border(
-                                    0.5.dp,
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                    RoundedCornerShape(24.dp),
-                                )
+                                .heightIn(min = 56.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                                 .padding(start = 10.dp, end = 8.dp),
                         ) {
                             Row(
@@ -1452,7 +1520,8 @@ fun SessionListScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(16.dp))
+                                    .heightIn(min = 48.dp)
+                                    .clip(RoundedCornerShape(14.dp))
                                     .clickable(enabled = headerIdx != null) {
                                         scope.launch {
                                             headerIdx?.let { listState.animateScrollToItem(it) }
@@ -1464,7 +1533,7 @@ fun SessionListScreen(
                                 FolderMemberTile(
                                     members = bar.tileMembers,
                                     size = 30.dp,
-                                    loadingColor = if (bar.anyActive) groupLoadingColor(bar.activeCategory) else null,
+                                    loadingColor = if (bar.anyActive) groupLoadingColor() else null,
                                 )
                                 // Folder names are user data — verbatim.
                                 Text(
@@ -1479,8 +1548,8 @@ fun SessionListScreen(
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(14.dp))
                                     .background(
                                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
                                     )
@@ -1502,8 +1571,9 @@ fun SessionListScreen(
                     }
                 }
             }
+                }
 
-            // Bottom area: dual FABs or selection toolbar (matching iOS fabRow / selectionToolbar)
+            // Measured below the viewport, so selection needs no FAB reserve.
             if (isSelecting) {
                 // Selection toolbar at bottom (matching iOS: Export + Delete)
                 SelectionToolbar(
@@ -1540,48 +1610,8 @@ fun SessionListScreen(
                     },
                     onMove = { viewModel.requestGroupPickerForSelection() },
                     onDelete = { showBulkDeleteDialog = true },
-                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
-            } else if (hasProviders && (sessions.isNotEmpty() || isSearchActive)) {
-                // Dual FAB row (matching iOS: New Chat left + Search right, or vice versa).
-                // Hidden while the onboarding landing is showing — Step 3 provides the CTA.
-                // T46: stay visible while search is active even when the result
-                // set is empty, so the user can edit / clear the query without
-                // having to rediscover the search FAB after a 0-hit query.
-                DualFabRow(
-                    isDark = isDark,
-                    isSearchActive = isSearchActive,
-                    searchQuery = searchQuery,
-                    isSearching = isSearching,
-                    hasSessions = sessions.isNotEmpty() || isSearchActive,
-                    onNewChat = {
-                        scope.launch {
-                            val sessionId = viewModel.createNewSession()
-                            if (sessionId != null) onNewChatGuarded(sessionId)
-                        }
-                    },
-                    onNewChatWithGroup = { groupId ->
-                        scope.launch {
-                            val sessionId = viewModel.createNewSession(groupId = groupId)
-                            if (sessionId != null) onNewChatGuarded(sessionId)
-                        }
-                    },
-                    modelGroups = providerConfig.modelGroups,
-                    onSearchToggle = {
-                        if (isSearchActive) {
-                            viewModel.searchQuery.value = ""
-                            viewModel.isSearchActive.value = false
-                        } else {
-                            viewModel.isSearchActive.value = true
-                        }
-                    },
-                    onSearchQueryChange = { viewModel.searchQuery.value = it },
-                    onSearchDismiss = {
-                        viewModel.searchQuery.value = ""
-                        viewModel.isSearchActive.value = false
-                    },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
+            }
             }
         }
     }
@@ -1800,14 +1830,13 @@ fun SessionListScreen(
     }
 }
 
-// ─── Dual FAB Row (matching iOS fabRow) ─────────────────────────────────────
+// Primary actions retain their persisted drag-to-swap ordering and group menu.
 
 /** Persisted preference key for FAB order swap. */
 private const val PREF_FAB_SWAPPED = "fab_swapped"
 
 @Composable
 private fun DualFabRow(
-    isDark: Boolean,
     isSearchActive: Boolean,
     searchQuery: String,
     isSearching: Boolean,
@@ -1875,35 +1904,33 @@ private fun DualFabRow(
         ) {
             FloatingActionButton(
                 onClick = onNewChat,
-                shape = CircleShape,
-                containerColor = minisFabColor(),
+                shape = RoundedCornerShape(14.dp),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier
-                    .size(56.dp)
-                    // [T-newchat-fab-shadow] The shadow goes FIRST, outside the clip
-                    // below: a shadow drawn after `.clip(CircleShape)` (and the FAB's
-                    // own elevation shadow, drawn inside the Surface) falls outside
-                    // the circle and was clipped away, so this button had no shadow
-                    // while the search FAB beside it did. Same shadow and elevation
-                    // as the search FAB so the pair looks alike, swapped or not.
-                    .shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.15f))
-                    // [T-android-fab-square-ripple] Clip BEFORE combinedClickable.
-                    // FloatingActionButton's own `shape = CircleShape` only bounds
-                    // the ripple it draws internally; this extra clickable layer
-                    // (added for the long-press group menu) is a separate
-                    // interaction source and draws its own indication, which
-                    // without a clip spreads to the square 56dp bounds and shows
-                    // as a grey box behind the round button. Same ordering as the
-                    // circular voice button in ChatComposerWidgets.
-                    .clip(CircleShape)
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .combinedClickable(
                         onClick = onNewChat,
                         onLongClick = {
                             if (topGroups.isNotEmpty()) showGroupMenu = true
                         },
                     ),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
             ) {
-                Icon(Icons.Outlined.Forum, contentDescription = "New Chat", tint = Color.White, modifier = Modifier.size(24.dp))
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text(
+                        stringResource(R.string.new_chat),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
             DropdownMenu(
                 expanded = showGroupMenu,
@@ -1932,12 +1959,12 @@ private fun DualFabRow(
             ) {
                 FloatingActionButton(
                     onClick = onSearchToggle,
-                    shape = CircleShape,
-                    // iOS: UIColor.secondarySystemBackground = #F2F2F7 (light) / #1C1C1E (dark).
-                    // ChatColors.secondaryBg already matches these values across themes.
-                    containerColor = ChatColors.secondaryBg,
+                    shape = RoundedCornerShape(14.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .size(56.dp)
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .offset { IntOffset(searchDragX.roundToInt(), 0) }
                         .pointerInput(Unit) {
                             detectHorizontalDragGestures(
@@ -1951,35 +1978,51 @@ private fun DualFabRow(
                                 onDragCancel = { searchDragX = 0f },
                                 onHorizontalDrag = { _, dragAmount -> searchDragX += dragAmount },
                             )
-                        }
-                        .shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.15f)),
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                        },
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
                 ) {
-                    Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.sessionlist_search_action), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Text(
+                            stringResource(R.string.sessionlist_search_action),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                 }
             }
         }
     }
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            // T24: lift the FAB+search row above the IME so the text field
-            // remains visible while typing. Compose-managed inset — handles
-            // the IME open/close animation in lockstep.
-            .imePadding()
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Render in swapped or normal order
-        if (isSwapped) { searchFab(); } else { chatFab() }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.weight(1f)) {
+                if (isSwapped && !isSearchActive) searchFab() else chatFab()
+            }
+            if (!isSearchActive) {
+                Box(Modifier.weight(1f)) {
+                    if (isSwapped) chatFab() else searchFab()
+                }
+            }
+        }
 
         // Middle: Inline search bar (when active)
         AnimatedVisibility(
             visible = isSearchActive,
-            enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.85f),
-            exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.85f),
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(100)),
         ) {
             OutlinedTextField(
                 value = searchQuery,
@@ -2008,31 +2051,15 @@ private fun DualFabRow(
                         }
                     }
                 },
-                // T46: full-capsule shape mirrors iOS searchable-field style
-                // (see ContentView.fabRow — `.clipShape(Capsule())` over a
-                // 56pt-tall HStack). RoundedCornerShape(50) is Compose's
-                // canonical "pill" radius — guaranteed circular ends at any
-                // height. Pair with a fixed 48dp height so the field aligns
-                // with the flanking 56dp FABs without overpowering them.
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50),
-                // T10: Material3's default OutlinedTextField containerColor is
-                // Color.Transparent, which lets the LazyColumn's session rows
-                // bleed through and overlap the typed query text. Set both
-                // focused and unfocused container colors to surfaceContainerHigh
-                // (matches the grouped-section card background already used
-                // throughout settings) so the field reads as a discrete
-                // surface above the list. Also drop both border colors —
-                // capsule shape with no outline reads more like iOS's filled
-                // search bar than the M3 outlined field default.
+                shape = RoundedCornerShape(14.dp),
                 colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.8f),
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.Transparent,
                 ),
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 10.dp)
+                    .fillMaxWidth()
                     // [T-android-search-height] Left at the component's own
                     // height. Forcing 42dp here clipped the placeholder: a
                     // plain OutlinedTextField keeps its 16dp vertical
@@ -2046,7 +2073,6 @@ private fun DualFabRow(
             )
         }
 
-        if (isSwapped) { chatFab() } else { searchFab() }
     }
 }
 
@@ -2065,7 +2091,7 @@ private fun SelectionToolbar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
@@ -2083,7 +2109,7 @@ private fun SelectionToolbar(
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(stringResource(R.string.sessionlist_export), fontSize = 11.sp)
+                    Text(stringResource(R.string.sessionlist_export), style = MaterialTheme.typography.labelMedium)
                 }
             }
             DropdownMenu(expanded = showExportMenu, onDismissRequest = { showExportMenu = false }) {
@@ -2116,7 +2142,7 @@ private fun SelectionToolbar(
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.group_move_action), fontSize = 11.sp)
+                Text(stringResource(R.string.group_move_action), style = MaterialTheme.typography.labelMedium)
             }
         }
 
@@ -2129,14 +2155,14 @@ private fun SelectionToolbar(
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = stringResource(R.string.delete),
-                    tint = if (selectedCount > 0) MaterialTheme.colorScheme.error else Color.Gray,
+                    tint = if (selectedCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.delete),
-                    fontSize = 11.sp,
-                    color = if (selectedCount > 0) MaterialTheme.colorScheme.error else Color.Gray,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (selectedCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -2154,8 +2180,7 @@ private fun SectionHeader(title: String) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .padding(top = 4.dp),
+            .padding(start = 28.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
     ) {
         if (isPinned) {
             Icon(
@@ -2170,7 +2195,7 @@ private fun SectionHeader(title: String) {
         }
         Text(
             text = title,
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -2484,14 +2509,10 @@ private fun SessionItemContent(
 private enum class FolderSegment { LONE, TOP, MIDDLE, BOTTOM }
 
 /**
- * Edge highlight for the folder container: bright hairline in dark mode, a
- * subtle dark line in light mode (white would vanish on the light page) —
- * iOS `folderEdgeHighlight` verbatim.
+ * Subtle semantic edge, shared by every independently rendered folder segment.
  */
 @Composable
-private fun folderEdgeColor(): Color =
-    if (ChatColors.isDark) Color.White.copy(alpha = 0.30f)
-    else Color.Black.copy(alpha = 0.08f)
+private fun folderEdgeColor(): Color = MaterialTheme.colorScheme.outlineVariant
 
 @Composable
 private fun folderFillColor(): Color = MaterialTheme.colorScheme.surfaceContainerLow
@@ -2501,7 +2522,7 @@ private fun Modifier.folderSurface(
     fill: Color,
     edge: Color,
 ): Modifier = drawWithContent {
-    val r = 16.dp.toPx()
+    val r = 20.dp.toPx()
     val w = size.width
     val h = size.height
     val cr = CornerRadius(r, r)
@@ -2575,8 +2596,9 @@ private fun FolderShowMoreRow(hidden: Int, onClick: () -> Unit) {
         modifier = Modifier
             .padding(start = LIST_GUTTER, end = LIST_GUTTER, bottom = 4.dp)
             .folderSurface(FolderSegment.BOTTOM, fill = folderFillColor(), edge = folderEdgeColor())
-            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+            .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = AVATAR_INSET, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -2652,14 +2674,14 @@ private fun FolderMemberTile(members: List<FolderTileMember>, size: Dp = 44.dp, 
         modifier = Modifier
             .size(size)
             .background(
-                muted.copy(alpha = if (ChatColors.isDark) 0.22f else 0.16f),
-                RoundedCornerShape((12f * scale).dp),
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+                RoundedCornerShape((14f * scale).dp),
             ),
         contentAlignment = Alignment.Center,
     ) {
         if (loadingColor != null) {
             GroupLoadingBorder(
-                cornerRadius = (12f * scale).dp,
+                cornerRadius = (14f * scale).dp,
                 color = loadingColor,
                 modifier = Modifier.matchParentSize(),
             )
@@ -2678,15 +2700,13 @@ private fun FolderMemberTile(members: List<FolderTileMember>, size: Dp = 44.dp, 
                     .align(Alignment.TopStart)
                     .offset(x = (cell.x * scale).dp, y = (cell.y * scale).dp)
                     .size(side)
-                    // 35 %: a row's highlighted tint - a cell is small, the
-                    // 18 % resting tint would wash out on the tile's grey.
-                    .background(style.color.copy(alpha = 0.35f), CircleShape),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLowest, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = style.icon,
+                    imageVector = style,
                     contentDescription = null,
-                    tint = style.color,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(side * 0.55f),
                 )
             }
@@ -2723,16 +2743,13 @@ internal fun memberTileCells(n: Int): List<MemberTileCell> {
 }
 
 /**
- * [PAR-261022-02] How far a row's avatar stays from its fill's left, top and
- * bottom edges (and the time from its right), and the group tile from its
- * card's inner edges: one gap all round, as on Windows (UI-261022-04). 12dp
- * keeps Android's 68dp row (44dp avatar) and, with [LIST_GUTTER], the 16dp
- * content keyline.
+ * Inset inside row and folder surfaces. The 44dp avatar plus this padding
+ * gives a compact 68dp baseline that still grows with the user's font scale.
  */
 private val AVATAR_INSET = 12.dp
 
 /** [PAR-261022-02] The space between the screen edge and a row's fill or a group card. */
-private val LIST_GUTTER = 4.dp
+private val LIST_GUTTER = 16.dp
 
 @Composable
 private fun FolderCard(
@@ -2806,9 +2823,9 @@ private fun FolderCard(
                 // segment), so the ripple must stay square at the weld.
                 .clip(
                     if (isExpandedWithRows) {
-                        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                     } else {
-                        RoundedCornerShape(16.dp)
+                        RoundedCornerShape(20.dp)
                     },
                 )
                 // detectTapGestures instead of combinedClickable so the
@@ -2866,7 +2883,7 @@ private fun FolderCard(
                 // so the tile stays still (no track either).
                 FolderMemberTile(
                     members = block.tileMembers,
-                    loadingColor = if (block.isCollapsed && block.anyActive) groupLoadingColor(block.activeCategory) else null,
+                    loadingColor = if (block.isCollapsed && block.anyActive) groupLoadingColor() else null,
                 )
                 if (block.isCollapsed && block.anyUnread) {
                     UnreadDot(
@@ -2906,7 +2923,7 @@ private fun FolderCard(
                     // [T-search-folder-expand] A folder-name hit is highlighted like a title hit.
                     if (searchQuery != null) highlightedAnnotatedString(block.folder.name, searchQuery)
                     else androidx.compose.ui.text.AnnotatedString(block.folder.name),
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -2931,7 +2948,7 @@ private fun FolderCard(
                             stringResource(R.string.group_n_chats, block.totalCount)
                         else -> stringResource(R.string.group_empty)
                     },
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -2944,8 +2961,8 @@ private fun FolderCard(
             ) {
                 Text(
                     dateText,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.outline,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -3091,13 +3108,8 @@ private fun SessionRow(
     // hand: emit Press/Release/Cancel into an InteractionSource from
     // onPress, and mount it with Modifier.indication.
     //
-    // Highlight SHAPE mirrors the folder card (user request): ungrouped rows
-    // clip the indication to the same LIST_GUTTER-inset, 16dp-radius rounded
-    // rect the group card uses — 4dp outside the clip + 12dp inside keeps the
-    // 16dp content lead. Folder members skip this: their
-    // wrapper Box already clips to the welded container's segment shape
-    // (square middles / bottom-rounded last), and a rounded ripple mid-weld
-    // would break the one-container illusion.
+    // Loose rows share the folder's inset and 20dp corners. Folder members
+    // inherit their segment clip so the expanded group remains continuous.
     val pressInteractions = remember { MutableInteractionSource() }
     // [T-android-split-selection-shape] `inFolder` must be derived from the
     // FOLDER flag, not from "rowBackground is non-null".
@@ -3107,16 +3119,15 @@ private fun SessionRow(
     // list gained a selected row, a primary tint for the selection. The old
     // `rowBackground != null` test could not tell them apart, so a SELECTED
     // ungrouped row was treated as a folder member: it skipped the gutter inset
-    // and the 16dp clip, and the tint was painted edge-to-edge as a square
+    // and the rounded clip, and the tint was painted edge-to-edge as a square
     // band. That is the reported symptom — the highlight looked taller than it
     // was wide-inset, with hard corners.
     val inFolder = isFolderMember
     // [PAR-261022-02] A SELECTED folder member is a square band across the
     // card's inner width (Windows UI-261022-03), no longer an inset rounded
     // pill: it is plainly one row of the card, and the wrapper's clip rounds
-    // the last row's band into the card's bottom corners. The card's fill is
-    // white / #1C1C1E over the #F2F2F7 / black list, so the selection tint,
-    // the same as a loose row's, stands out on it.
+    // the last row's band into the card's bottom corners. The semantic primary
+    // container keeps the selected row distinct in both theme modes.
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -3124,7 +3135,7 @@ private fun SessionRow(
                 if (!inFolder) {
                     Modifier
                         .padding(horizontal = LIST_GUTTER)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(20.dp))
                 } else {
                     Modifier
                 }
@@ -3134,7 +3145,7 @@ private fun SessionRow(
             // clip only ever shaped the ripple. Now the tint is the rounded
             // rect itself, matching the folder card's shape and leaving equal
             // gutters left and right.
-            .background(rowBackground ?: MaterialTheme.colorScheme.surface)
+            .background(rowBackground ?: Color.Transparent)
             .then(
                 if (onLongClick != null) {
                     Modifier
@@ -3177,11 +3188,7 @@ private fun SessionRow(
                     }
                 }
             )
-            // [PAR-261022-02] AVATAR_INSET on every side, in both branches:
-            // the avatar is as far from its fill's left as from its top and
-            // bottom (the 44dp avatar keeps the row at 68dp), and LIST_GUTTER
-            // (loose rows) or the wrapper's gutter (folder members) + 12 puts
-            // every avatar - the group tile's too - on one 16dp column.
+            // Shared inner inset aligns all session avatars and folder tiles.
             .padding(AVATAR_INSET),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -3190,7 +3197,7 @@ private fun SessionRow(
             leadingIcon()
         }
 
-        // Category icon in colored circle (18% opacity matching iOS)
+        // Quiet category glyph; live activity and unread state carry the accent.
         // [T-android-sidebar-subagent-running] See the folder aggregate above:
         // running sub agents count as this session working.
         // [T-scheduled-active-session-android] The tracker's one "processing"
@@ -3211,15 +3218,15 @@ private fun SessionRow(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        color = style.color.copy(alpha = 0.18f),
-                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        shape = RoundedCornerShape(14.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = style.icon,
+                    imageVector = style,
                     contentDescription = null,
-                    tint = style.color,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -3231,7 +3238,7 @@ private fun SessionRow(
                     contentAlignment = Alignment.Center,
                 ) {
                     SpinningRing(
-                        color = style.color,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(42.dp),
                     )
                 }
@@ -3254,12 +3261,12 @@ private fun SessionRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
-            val titleText = session.title ?: "New Chat"
+            val titleText = session.title ?: stringResource(R.string.new_chat)
             if (searchQuery.isNotBlank()) {
                 Text(
                     text = highlightedAnnotatedString(titleText, searchQuery),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (rowBackground != null && rowBackground != Color.Transparent) FontWeight.SemiBold else FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3267,8 +3274,8 @@ private fun SessionRow(
             } else {
                 Text(
                     text = titleText,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (rowBackground != null && rowBackground != Color.Transparent) FontWeight.SemiBold else FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3280,7 +3287,7 @@ private fun SessionRow(
             if (searchQuery.isNotBlank() && searchSnippet != null) {
                 Text(
                     text = highlightedAnnotatedString(searchSnippet, searchQuery),
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -3288,7 +3295,7 @@ private fun SessionRow(
             } else {
                 Text(
                     text = session.lastMessage ?: "No messages yet",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3299,8 +3306,8 @@ private fun SessionRow(
         // Relative timestamp
         Text(
             text = timeText,
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.outline,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -3404,14 +3411,10 @@ private fun GroupLoadingBorder(cornerRadius: Dp, color: Color, modifier: Modifie
 }
 
 /**
- * [UI-261023-03] The comet's colour: the working member's category avatar
- * colour, or the theme accent when it has no (known) category.
+ * Live work uses the shared accent; category remains encoded by the glyph.
  */
 @Composable
-private fun groupLoadingColor(category: String?): Color {
-    val style = categoryStyle(category)
-    return if (category.isNullOrBlank() || style == categoryStyle(null)) MaterialTheme.colorScheme.primary else style.color
-}
+private fun groupLoadingColor(): Color = MaterialTheme.colorScheme.primary
 
 private val GROUP_LOADING_STROKE = 2.5.dp
 private const val GROUP_LOADING_PERIOD_MS = 1500
@@ -3458,17 +3461,17 @@ private fun SpinningRing(
 }
 
 /**
- * [UI-261023-07] The unread dot: iOS's 8pt system red, optionally lifted off
- * a busy tile by a 1.5dp ring in [ringColor] (the group card's fill).
+ * Unread replies use the primary accent, optionally lifted off a busy tile by
+ * a 1.5dp ring in [ringColor] (the group card's fill).
  */
 @Composable
 private fun UnreadDot(modifier: Modifier = Modifier, ringColor: Color? = null) {
-    val red = if (ChatColors.isDark) Color(0xFFFF453A) else Color(0xFFFF3B30)
+    val unreadColor = MaterialTheme.colorScheme.primary
     Box(
         modifier = modifier
             .then(if (ringColor != null) Modifier.background(ringColor, CircleShape).padding(1.5.dp) else Modifier)
             .size(8.dp)
-            .background(red, CircleShape),
+            .background(unreadColor, CircleShape),
     )
 }
 
@@ -3541,10 +3544,8 @@ private fun OnboardingLanding(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // Bottom padding ≈ top-bar height so the content visually centers
-            // relative to the whole screen, not just the Scaffold inner area.
-            .padding(horizontal = 32.dp)
-            .padding(bottom = 64.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -3625,7 +3626,8 @@ private fun OnboardingLanding(
             Spacer(Modifier.height(12.dp))
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .clickable(onClick = onRestoreBackup)
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -3662,8 +3664,8 @@ private fun SetupStepCard(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(20.dp),
             )
             .clickable(enabled = isEnabled, onClick = onClick)
             .padding(14.dp),
@@ -3674,7 +3676,7 @@ private fun SetupStepCard(
             modifier = Modifier
                 .size(32.dp)
                 .background(
-                    color = if (isDone) Color(0xFF34C759) else MaterialTheme.colorScheme.primary,
+                    color = if (isDone) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
@@ -3683,21 +3685,21 @@ private fun SetupStepCard(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(16.dp),
                 )
             } else {
                 Text(
                     text = "$number",
-                    color = Color.White,
-                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
         }
 
         Column(
-            modifier = Modifier.weight(1f).height(56.dp),
+            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
@@ -3823,8 +3825,8 @@ internal fun SessionEditSheet(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
                             .background(
-                                if (isSelected) style.color.copy(alpha = 0.2f)
-                                else MaterialTheme.colorScheme.surfaceContainerHigh
+                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceContainerLow
                             )
                             .clickable {
                                 selectedCategory = if (isSelected) null else cat.lowercase()
@@ -3834,16 +3836,17 @@ internal fun SessionEditSheet(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = style.icon,
+                                imageVector = style,
                                 contentDescription = null,
-                                tint = style.color,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
                             )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 cat,
-                                fontSize = 11.sp,
-                                color = if (isSelected) style.color
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             )

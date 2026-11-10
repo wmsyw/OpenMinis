@@ -22,6 +22,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +44,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
@@ -55,10 +57,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +73,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -77,7 +82,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
@@ -94,6 +98,7 @@ import java.io.File
 import java.io.OutputStream
 import com.openminis.app.ui.components.MinisTextButton
 import com.openminis.app.ui.components.safeLaunchPicker
+import com.openminis.app.ui.theme.ChatColors
 
 private const val MAX_TEXT_PREVIEW_BYTES = 512_000 // 500 KB
 
@@ -258,8 +263,10 @@ private fun FilePreviewContent(
         onDispose { }
     }
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 title = {
                     Text(
                         text = if (showFullPath) item.file.absolutePath else item.name,
@@ -479,6 +486,9 @@ internal fun TextPreview(item: FileItem) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ChatColors.codeBlockBg)
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Box(
@@ -489,13 +499,10 @@ internal fun TextPreview(item: FileItem) {
                         SafeCopySelection {
                             Text(
                                 text = content!!,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 12.sp,
-                                    lineHeight = 18.sp,
-                                ),
+                                color = ChatColors.codeBlockText,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                                 softWrap = false,
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier.padding(16.dp),
                             )
                         }
                     }
@@ -797,16 +804,23 @@ private fun CsvPreview(item: FileItem) {
                     )
                     HorizontalDivider()
                 }
-                LazyColumn(modifier = Modifier.fillMaxSize().horizontalScroll(rememberScrollState())) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ChatColors.codeBlockBg)
+                        .horizontalScroll(rememberScrollState()),
+                ) {
                     items(table.size) { rowIdx ->
                         val cols = table[rowIdx]
                         Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                             cols.forEach { cell ->
                                 Text(
                                     text = cell,
+                                    color = ChatColors.codeBlockText,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontFamily = FontFamily.Monospace,
-                                        fontSize = 12.sp,
                                         fontWeight = if (rowIdx == 0) FontWeight.Bold else FontWeight.Normal,
                                     ),
                                     modifier = Modifier.padding(end = 16.dp).width(140.dp),
@@ -892,6 +906,9 @@ private fun JsonPreview(item: FileItem) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(16.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ChatColors.codeBlockBg)
                     .verticalScroll(rememberScrollState()),
             ) {
                 Box(
@@ -902,13 +919,10 @@ private fun JsonPreview(item: FileItem) {
                     SafeCopySelection {
                         Text(
                             text = pretty!!,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp,
-                                lineHeight = 18.sp,
-                            ),
+                            color = ChatColors.codeBlockText,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                             softWrap = false,
-                            modifier = Modifier.padding(12.dp),
+                            modifier = Modifier.padding(16.dp),
                         )
                     }
                 }
@@ -1124,18 +1138,23 @@ private fun ArchivePreview(item: FileItem) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 HorizontalDivider()
-                LazyColumn(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    Modifier.fillMaxSize().padding(16.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                ) {
                     items(list.size) { i ->
                         val e = list[i]
                         ListItem(
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                             headlineContent = {
                                 Text(
                                     e.name,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontFamily = FontFamily.Monospace,
-                                        fontSize = 12.sp,
                                     ),
-                                    maxLines = 1,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             },
                             supportingContent = if (e.isDir) null else {
@@ -1286,13 +1305,21 @@ private fun FileInfoView(item: FileItem) {
  */
 @Composable
 private fun FileMetadataBlock(item: FileItem) {
-    HorizontalDivider()
     val attrs = remember(item) { buildFileAttributes(item) }
-    attrs.forEach { (key, value) ->
-        ListItem(
-            headlineContent = { Text(value) },
-            overlineContent = { Text(key) },
-        )
+    Column(
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        attrs.forEach { (key, value) ->
+            ListItem(
+                headlineContent = { Text(value, style = MaterialTheme.typography.bodyLarge) },
+                overlineContent = { Text(key, style = MaterialTheme.typography.labelMedium) },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            )
+        }
     }
 }
 

@@ -162,6 +162,13 @@ docs/specs/       Architecture and interface specifications
 scripts/          Rootfs preparation and developer tooling
 ```
 
+**Android UI.** The Android interface follows the dsh-go reference: light/dark
+mist and slate palettes, shared theme, shape and type tokens, and native
+Navigation Compose. It covers the session list, chat and composer, settings,
+terminal, and shared tool and browser sheets. For maintainers, `Theme.kt` and
+`ChatColors.kt` (`ui/theme/`) plus `SectionDesign.kt` (`ui/components/`) are
+the sources of truth under `src/android/app/src/main/java/com/openminis/app/`.
+
 ---
 
 ## Acknowledgements

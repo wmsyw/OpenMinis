@@ -52,20 +52,9 @@ internal fun formatStepDuration(seconds: Long, stillRunning: Boolean): String {
     return if (stillRunning) "$base…" else base
 }
 
-// Helper: tool accent color
-internal fun toolAccentColor(toolName: String): Color = when (toolName) {
-    "shell_execute" -> Color(0xFF34C759)
-    "file_read" -> Color(0xFF32ADE6)
-    "file_write" -> Color(0xFF007AFF)
-    "file_edit" -> Color(0xFFFF9500)
-    "browser_use" -> Color(0xFF007AFF)
-    "read_image" -> Color(0xFFAF52DE)
-    "memory_write", "memory_get" -> Color(0xFFFF2D55)
-    "web_search" -> Color(0xFF32ADE6)    // iOS: .cyan for search
-    // [T-sub-agents-v1] Current name + the pre-rename one still in shipped transcripts.
-    "subagent_task", "delegate_task", "agent_status" -> HelperAccentStatic  // iOS: HelperAccent.color (electric violet)
-    else -> Color(0xFF8E8E93)
-}
+// Static mid-tone accents stay muted on both mist and slate surfaces. Keep
+// this non-composable: notification overlays also use the same identity map.
+internal fun toolAccentColor(toolName: String): Color = Color(toolAccentColorInt(toolName))
 
 // Helper: tool icon (iOS: distinct SF Symbols per tool type)
 internal fun toolIconFor(toolName: String) = when (toolName) {
@@ -101,20 +90,21 @@ internal fun toolIconResFor(toolName: String?): Int = when (toolName) {
     else -> R.drawable.ic_tool_build
 }
 
-// [T-android-overlay-two-row] View-layer twin of [toolAccentColor]. Same
-// literals, as a packed ARGB Int rather than a Compose Color.
+// [T-android-overlay-two-row] Single identity palette for Compose and View
+// overlays. Mid-tone blues, sage, amber, and dusk replace vivid system colors.
 @androidx.annotation.ColorInt
 internal fun toolAccentColorInt(toolName: String?): Int = when (toolName) {
-    "shell_execute" -> 0xFF34C759.toInt()
-    "file_read" -> 0xFF32ADE6.toInt()
-    "file_write" -> 0xFF007AFF.toInt()
-    "file_edit" -> 0xFFFF9500.toInt()
-    "browser_use" -> 0xFF007AFF.toInt()
-    "read_image" -> 0xFFAF52DE.toInt()
-    "memory_write", "memory_get" -> 0xFFFF2D55.toInt()
-    "web_search" -> 0xFF32ADE6.toInt()
-    "subagent_task", "delegate_task", "agent_status" -> 0xFFAF52DE.toInt()
-    else -> 0xFF8E8E93.toInt()
+    "shell_execute" -> 0xFF648972.toInt()
+    "file_read" -> 0xFF658895.toInt()
+    "file_write" -> 0xFF6B80B3.toInt()
+    "file_edit" -> 0xFFA07C47.toInt()
+    "browser_use" -> 0xFF6B80B3.toInt()
+    "read_image" -> 0xFF8A79A0.toInt()
+    "memory_write", "memory_get" -> 0xFF9B768C.toInt()
+    "web_search" -> 0xFF658895.toInt()
+    // Current name and historical names retain the same dusk identity.
+    "subagent_task", "delegate_task", "agent_status" -> 0xFF8976A5.toInt()
+    else -> 0xFF7B818C.toInt()
 }
 
 /**

@@ -3,6 +3,10 @@ package com.openminis.app.ui.onboarding
 import com.openminis.app.R
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.ui.components.MinisButton
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import com.openminis.app.ui.components.MinisTextButton
 
 import androidx.compose.foundation.background
@@ -20,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -58,10 +63,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openminis.app.data.model.ModelGroup
 import com.openminis.app.data.repository.ProviderRepository
+import com.openminis.app.ui.components.SectionDesign
 
 /**
- * Onboarding step 2: pick 1-3 models from configured providers
- * and create a "Default Models" group. Mirrors iOS OnboardingModelSelectionView.
+ * Onboarding step 2: pick 1–3 models from configured providers and create the
+ * default model group. The live fetch, retry, and manual-add flow is unchanged.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,10 +146,7 @@ fun OnboardingModelSelectionScreen(
             runBoundedFetch()
             return@LaunchedEffect
         }
-        // Normal path: refresh model lists for every enabled instance when the
-        // screen appears, so the user sees the live provider catalog (not just
-        // the built-in placeholder list seeded by addInstance). Mirrors iOS
-        // fetchModelsWithFallback chain.
+        // Refresh each enabled provider's live catalog on entry.
         for (instance in enabledInstances) {
             // [T-provider-refresh-outlives-screen] (GH#265) Repository scope, so
             // tapping Continue quickly does not cancel the fetch half-way.
@@ -159,9 +162,16 @@ fun OnboardingModelSelectionScreen(
     val grouped = filteredEntries.groupBy { it.providerInstanceId }
 
     Scaffold(
+        containerColor = SectionDesign.screenBackgroundColor(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.onboarding_select_models_title)) },
+                title = {
+                    Text(
+                        stringResource(R.string.onboarding_select_models_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
@@ -172,128 +182,10 @@ fun OnboardingModelSelectionScreen(
                         Text(stringResource(R.string.common_skip))
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SectionDesign.screenBackgroundColor()),
             )
         },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-        ) {
-            Text(
-                stringResource(R.string.onboarding_select_models_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it },
-                label = { Text(stringResource(R.string.onboarding_filter_models)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(50),
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            if (allEntries.isEmpty() && !fetching && failureDetail != null) {
-                ModelFetchFailure(
-                    detail = failureDetail.orEmpty(),
-                    instances = enabledInstances.map { it.id to it.label },
-                    onRetry = { runBoundedFetch() },
-                    onAddCustomModel = onAddCustomModel,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                )
-            } else if (allEntries.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.onboarding_loading_models),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    for ((instanceId, entries) in grouped) {
-                        val instance = config.instances.find { it.id == instanceId }
-                        item(key = "header_$instanceId") {
-                            Text(
-                                instance?.label ?: instanceId,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(vertical = 8.dp),
-                            )
-                        }
-                        items(entries, key = { it.id }) { entry ->
-                            val isSelected = entry.id in selected
-                            val selectionIndex = selected.indexOf(entry.id)
-                            val canSelect = selected.size < 3 || isSelected
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = canSelect) {
-                                        if (isSelected) selected.remove(entry.id)
-                                        else if (selected.size < 3) selected.add(entry.id)
-                                    }
-                                    .padding(vertical = 10.dp, horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(26.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.surfaceVariant
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    if (isSelected) {
-                                        Text(
-                                            "${selectionIndex + 1}",
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        entry.model.displayName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                    Text(
-                                        entry.model.id,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            HorizontalDivider()
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
+        bottomBar = {
             MinisButton(
                 onClick = {
                     if (selected.isNotEmpty()) {
@@ -307,11 +199,153 @@ fun OnboardingModelSelectionScreen(
                     onBack()
                 },
                 enabled = selected.isNotEmpty(),
+                shape = SectionDesign.ControlShape,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(SectionDesign.ScreenHorizontalPadding),
             ) {
                 Text(stringResource(R.string.onboarding_done_count, selected.size))
+            }
+        },
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(
+                start = SectionDesign.ScreenHorizontalPadding,
+                end = SectionDesign.ScreenHorizontalPadding,
+                top = SectionDesign.FirstSectionTopGap,
+                bottom = SectionDesign.ScreenHorizontalPadding,
+            ),
+        ) {
+            item(key = "intro") {
+                Text(
+                    stringResource(R.string.onboarding_select_models_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = { Text(stringResource(R.string.onboarding_filter_models)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = SectionDesign.ControlShape,
+                )
+                Spacer(Modifier.height(16.dp))
+            }
+            if (allEntries.isEmpty() && !fetching && failureDetail != null) {
+                item(key = "failure") {
+                    ModelFetchFailure(
+                        detail = failureDetail.orEmpty(),
+                        instances = enabledInstances.map { it.id to it.label },
+                        onRetry = { runBoundedFetch() },
+                        onAddCustomModel = onAddCustomModel,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            } else if (allEntries.isEmpty()) {
+                item(key = "loading") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(SectionDesign.CardShape)
+                            .background(SectionDesign.cardColor())
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            stringResource(R.string.onboarding_loading_models),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            } else {
+                for ((instanceId, entries) in grouped) {
+                    val instance = config.instances.find { it.id == instanceId }
+                    item(key = "header_$instanceId") {
+                        Text(
+                            instance?.label ?: instanceId,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+                        )
+                    }
+                    items(entries, key = { it.id }) { entry ->
+                        val isSelected = entry.id in selected
+                        val selectionIndex = selected.indexOf(entry.id)
+                        val canSelect = selected.size < 3 || isSelected
+                        val first = entry.id == entries.first().id
+                        val last = entry.id == entries.last().id
+                        Column(
+                            modifier = Modifier
+                                .clip(
+                                    RoundedCornerShape(
+                                        topStart = if (first) 20.dp else 0.dp,
+                                        topEnd = if (first) 20.dp else 0.dp,
+                                        bottomStart = if (last) 20.dp else 0.dp,
+                                        bottomEnd = if (last) 20.dp else 0.dp,
+                                    ),
+                                )
+                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else SectionDesign.cardColor()),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 64.dp)
+                                    .clickable(enabled = canSelect) {
+                                        if (isSelected) selected.remove(entry.id)
+                                        else if (selected.size < 3) selected.add(entry.id)
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (isSelected) {
+                                        Text(
+                                            "${selectionIndex + 1}",
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(entry.model.displayName, style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        entry.model.id,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            if (!last) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 56.dp, end = 16.dp),
+                                    thickness = SectionDesign.DividerThickness,
+                                    color = SectionDesign.dividerColor(),
+                                )
+                            }
+                        }
+                    }
+                    item(key = "footer_$instanceId") { Spacer(Modifier.height(16.dp)) }
+                }
             }
         }
     }

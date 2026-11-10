@@ -9,147 +9,108 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Accent: iOS blue, desaturated. [T-android-accent-blue-parity]
-//
-// Was a teal (#2E8B8B / #4DD9D9) that predated iOS settling on blue. The hue
-// now comes from iOS Assets.xcassets/AccentColor.colorset (sRGB components
-// r0.212 g0.525 b0.933 -> #3686EE light, r0.329 g0.565 b0.894 -> #5490E4 dark),
-// but iOS's saturation (84% / 73%) read as glaring on Android's darker
-// surfaces, so SATURATION is dialled back ~30% with hue and lightness kept:
-//   light  #3686EE  S84% L57%  ->  #528AD2  S59% L57%
-//   dark   #5490E4  S73% L61%  ->  #6A94CE  S51% L61%
-//
-// Lightness is deliberately NOT raised, which is the other way to "lighten".
-// It would have softened dark mode further but pushed light-mode contrast on
-// white from 3.62 to 2.62 — below WCAG AA's 4.5 for text. Desaturating keeps
-// dark mode at 5.93 (passing) and leaves light mode where it was.
-//
-// Names keep the `Teal` prefix only to avoid churning 90+ call sites; the
-// value is the contract, not the name.
-private val TealPrimary = Color(0xFF528AD2)
-private val TealOnPrimary = Color(0xFFFFFFFF)
-private val TealPrimaryContainer = Color(0xFFB2DFDB)
-private val TealOnPrimaryContainer = Color(0xFF00332F)
-private val TealSecondary = Color(0xFF4A6360)
-private val TealOnSecondary = Color(0xFFFFFFFF)
-private val TealSecondaryContainer = Color(0xFFCCE8E4)
-private val TealOnSecondaryContainer = Color(0xFF05201D)
-private val TealTertiary = Color(0xFF46617A)
-private val TealOnTertiary = Color(0xFFFFFFFF)
-private val TealTertiaryContainer = Color(0xFFCDE5FF)
-private val TealOnTertiaryContainer = Color(0xFF001D32)
-private val TealBackground = Color(0xFFF5FAFA)
-private val TealOnBackground = Color(0xFF171D1C)
-private val TealSurface = Color(0xFFF5FAFA)
-private val TealOnSurface = Color(0xFF171D1C)
-private val TealSurfaceVariant = Color(0xFFDAE5E2)
-private val TealOnSurfaceVariant = Color(0xFF3F4947)
-private val TealOutline = Color(0xFF6F7977)
-
-private val TealDarkPrimary = Color(0xFF6A94CE)
-private val TealDarkOnPrimary = Color(0xFF003737)
-private val TealDarkPrimaryContainer = Color(0xFF1A6B6B)
-private val TealDarkOnPrimaryContainer = Color(0xFFB2DFDB)
-private val TealDarkSecondary = Color(0xFFB1CCC8)
-private val TealDarkOnSecondary = Color(0xFF1C3532)
-private val TealDarkSecondaryContainer = Color(0xFF334B48)
-private val TealDarkOnSecondaryContainer = Color(0xFFCCE8E4)
-private val TealDarkBackground = Color(0xFF0E1514)
-private val TealDarkOnBackground = Color(0xFFDEE4E2)
-private val TealDarkSurface = Color(0xFF0E1514)
-private val TealDarkOnSurface = Color(0xFFDEE4E2)
-private val TealDarkSurfaceVariant = Color(0xFF3F4947)
-private val TealDarkOnSurfaceVariant = Color(0xFFBEC9C6)
-private val TealDarkOutline = Color(0xFF899390)
-
-// Neutral grouped-card surfaces (iOS-style system-grouped background).
-// Override Material3's tonal `surfaceContainer*` so cards don't pick up the
-// teal primary tint.
-// Light: page = #F2F2F7 gray, card = white
-// Dark:  page = #000, card = #1C1C1E
-private val NeutralGroupedBg = Color(0xFFF2F2F7)
-private val NeutralGroupedCard = Color(0xFFFFFFFF)
-private val NeutralGroupedCardElevated = Color(0xFFF7F7FA)
-private val NeutralOutline = Color(0xFFD1D1D6)
-
-private val NeutralDarkGroupedBg = Color(0xFF000000)
-private val NeutralDarkGroupedCard = Color(0xFF1C1C1E)
-private val NeutralDarkGroupedCardElevated = Color(0xFF2C2C2E)
-private val NeutralDarkOutline = Color(0xFF38383A)
-
+// Mist-blue accent and cool slate surfaces, shared with the chat palette.
+// Every Material role is explicit so native controls never fall back to the
+// stock purple scheme. Surface hierarchy comes from the neutral ramp, not tint.
 private val LightColorScheme = lightColorScheme(
-    primary = TealPrimary,
-    onPrimary = TealOnPrimary,
-    primaryContainer = TealPrimaryContainer,
-    onPrimaryContainer = TealOnPrimaryContainer,
-    secondary = TealSecondary,
-    onSecondary = TealOnSecondary,
-    secondaryContainer = TealSecondaryContainer,
-    onSecondaryContainer = TealOnSecondaryContainer,
-    tertiary = TealTertiary,
-    onTertiary = TealOnTertiary,
-    tertiaryContainer = TealTertiaryContainer,
-    onTertiaryContainer = TealOnTertiaryContainer,
-    background = NeutralGroupedBg,
-    onBackground = TealOnBackground,
-    surface = NeutralGroupedBg,
-    onSurface = TealOnSurface,
-    surfaceVariant = NeutralGroupedCard,
-    onSurfaceVariant = TealOnSurfaceVariant,
-    surfaceContainerLowest = NeutralGroupedBg,
-    surfaceContainerLow = NeutralGroupedCard,
-    surfaceContainer = NeutralGroupedCard,
-    surfaceContainerHigh = NeutralGroupedCardElevated,
-    surfaceContainerHighest = NeutralGroupedCardElevated,
-    outline = NeutralOutline,
-    outlineVariant = NeutralOutline,
+    primary = LightChatPalette.sendButton,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFDEE8FF),
+    onPrimaryContainer = Color(0xFF213262),
+    inversePrimary = DarkChatPalette.sendButton,
+    secondary = Color(0xFF545E6F),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE2E6F0),
+    onSecondaryContainer = LightChatPalette.primaryText,
+    tertiary = Color(0xFF6B578F),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFECE5FB),
+    onTertiaryContainer = Color(0xFF3B2C54),
+    background = LightChatPalette.background,
+    onBackground = LightChatPalette.primaryText,
+    surface = LightChatPalette.background,
+    onSurface = LightChatPalette.primaryText,
+    surfaceVariant = Color(0xFFE7EBF4),
+    onSurfaceVariant = LightChatPalette.secondaryText,
+    surfaceTint = Color.Transparent,
+    inverseSurface = Color(0xFF2D323C),
+    inverseOnSurface = Color(0xFFE6E9F0),
+    error = Color(0xFFA54743),
+    onError = Color(0xFFFDF9F8),
+    errorContainer = Color(0xFFFFE2E0),
+    onErrorContainer = Color(0xFF642724),
+    outline = Color(0xFF7E838D),
+    outlineVariant = LightChatPalette.separator,
+    scrim = Color(0xFF0B111F),
+    surfaceBright = Color(0xFFFBFCFF),
+    surfaceDim = Color(0xFFDFE4EE),
+    surfaceContainerLowest = Color(0xFFFBFCFF),
+    surfaceContainerLow = Color(0xFFF6F9FE),
+    surfaceContainer = Color(0xFFEEF1F9),
+    surfaceContainerHigh = Color(0xFFE7EBF4),
+    surfaceContainerHighest = Color(0xFFDFE4EE),
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = TealDarkPrimary,
-    onPrimary = TealDarkOnPrimary,
-    primaryContainer = TealDarkPrimaryContainer,
-    onPrimaryContainer = TealDarkOnPrimaryContainer,
-    secondary = TealDarkSecondary,
-    onSecondary = TealDarkOnSecondary,
-    secondaryContainer = TealDarkSecondaryContainer,
-    onSecondaryContainer = TealDarkOnSecondaryContainer,
-    background = NeutralDarkGroupedBg,
-    onBackground = TealDarkOnBackground,
-    surface = NeutralDarkGroupedBg,
-    onSurface = TealDarkOnSurface,
-    surfaceVariant = NeutralDarkGroupedCard,
-    onSurfaceVariant = TealDarkOnSurfaceVariant,
-    surfaceContainerLowest = NeutralDarkGroupedBg,
-    surfaceContainerLow = NeutralDarkGroupedCard,
-    surfaceContainer = NeutralDarkGroupedCard,
-    surfaceContainerHigh = NeutralDarkGroupedCardElevated,
-    surfaceContainerHighest = NeutralDarkGroupedCardElevated,
-    outline = NeutralDarkOutline,
-    outlineVariant = NeutralDarkOutline,
+    primary = DarkChatPalette.sendButton,
+    onPrimary = Color(0xFF121C34),
+    primaryContainer = Color(0xFF2E3C5F),
+    onPrimaryContainer = Color(0xFFD8E1F6),
+    inversePrimary = LightChatPalette.sendButton,
+    secondary = Color(0xFFB3BED2),
+    onSecondary = Color(0xFF1A2230),
+    secondaryContainer = Color(0xFF343944),
+    onSecondaryContainer = DarkChatPalette.primaryText,
+    tertiary = Color(0xFFBEAEDE),
+    onTertiary = Color(0xFF251C36),
+    tertiaryContainer = Color(0xFF3E3451),
+    onTertiaryContainer = Color(0xFFE4DDF3),
+    background = DarkChatPalette.background,
+    onBackground = DarkChatPalette.primaryText,
+    surface = DarkChatPalette.background,
+    onSurface = DarkChatPalette.primaryText,
+    surfaceVariant = Color(0xFF343944),
+    onSurfaceVariant = DarkChatPalette.secondaryText,
+    surfaceTint = Color.Transparent,
+    inverseSurface = Color(0xFFE6E9F0),
+    inverseOnSurface = Color(0xFF1E232E),
+    error = Color(0xFFE69089),
+    onError = Color(0xFF331513),
+    errorContainer = Color(0xFF542C29),
+    onErrorContainer = Color(0xFFF8D9D7),
+    outline = Color(0xFF737781),
+    outlineVariant = DarkChatPalette.separator,
+    scrim = Color(0xFF0B111F),
+    surfaceBright = Color(0xFF343944),
+    surfaceDim = Color(0xFF14171E),
+    surfaceContainerLowest = Color(0xFF14171E),
+    surfaceContainerLow = Color(0xFF232730),
+    surfaceContainer = Color(0xFF272C36),
+    surfaceContainerHigh = Color(0xFF2D323C),
+    surfaceContainerHighest = Color(0xFF343944),
 )
 
-// App-wide FAB accent color (warm beige, matching iOS New Chat button).
-// Reads from ChatPalette so it follows the in-app theme override (theme_mode pref),
-// not android.isSystemInDarkTheme(), which only tracks the system setting.
+// FABs and send actions share the accent, including in-app appearance overrides.
 @Composable
 fun minisFabColor(): Color = LocalChatPalette.current.fabAccent
 
-// App-wide shape system — larger corners for a modern, friendly feel
-// DropdownMenu uses extraSmall, Dialog uses extraLarge, BottomSheet uses extraLarge
+// Shared 6 / 10 / 14 / 20 / 28dp shape vocabulary.
 private val MinisShapes = Shapes(
-    extraSmall = RoundedCornerShape(12.dp),   // DropdownMenu, Tooltip, OutlinedTextField default
-    small = RoundedCornerShape(12.dp),        // Chip, TextField
-    medium = RoundedCornerShape(20.dp),       // Card, Snackbar
-    large = RoundedCornerShape(24.dp),        // NavigationDrawer
-    extraLarge = RoundedCornerShape(28.dp),   // Dialog, BottomSheet
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
 @Composable
@@ -159,7 +120,7 @@ fun MinisTheme(
     content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-    val typography = scaledTypography(fontScale)
+    val typography = remember(fontScale) { scaledTypography(fontScale) }
     val chatPalette = if (darkTheme) DarkChatPalette else LightChatPalette
 
     MaterialTheme(
@@ -192,7 +153,7 @@ fun MinisAppearance(darkTheme: Boolean, content: @Composable () -> Unit) {
 }
 
 private fun TextStyle.scale(factor: Float): TextStyle =
-    if (factor == 1f) this else copy(fontSize = fontSize * factor)
+    if (factor == 1f) this else copy(fontSize = fontSize * factor, lineHeight = lineHeight * factor)
 
 /**
  * [T-fa-locale] Each paragraph takes its direction from its own text, but
@@ -209,8 +170,28 @@ private fun TextStyle.scale(factor: Float): TextStyle =
 private fun TextStyle.bidi(): TextStyle =
     copy(textDirection = TextDirection.Content, textAlign = TextAlign.Left)
 
+// System sans throughout; monospace remains reserved for rendered code.
+// Explicit line heights scale with the app preference as well as system sp.
+private val MinisTypography = Typography(
+    displayLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 36.sp, lineHeight = 43.sp),
+    displayMedium = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 32.sp, lineHeight = 38.sp),
+    displaySmall = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 28.sp, lineHeight = 35.sp),
+    headlineLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 26.sp, lineHeight = 34.sp),
+    headlineMedium = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 29.sp),
+    headlineSmall = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 27.sp),
+    titleLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, lineHeight = 25.sp),
+    titleMedium = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 23.sp),
+    titleSmall = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 22.sp),
+    bodyLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 26.sp),
+    bodyMedium = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 22.sp),
+    bodySmall = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 18.sp),
+    labelLarge = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 22.sp),
+    labelMedium = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 18.sp),
+    labelSmall = TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 18.sp),
+)
+
 private fun scaledTypography(factor: Float): Typography {
-    val base = Typography()
+    val base = MinisTypography
     return Typography(
         displayLarge = base.displayLarge.scale(factor).bidi(),
         displayMedium = base.displayMedium.scale(factor).bidi(),

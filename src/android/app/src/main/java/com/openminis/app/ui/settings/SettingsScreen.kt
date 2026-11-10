@@ -1,26 +1,16 @@
 package com.openminis.app.ui.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Lan
 import androidx.compose.material.icons.outlined.Dns
@@ -51,12 +41,9 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -68,14 +55,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.openminis.app.BuildConfig
 import com.openminis.app.R
 import com.openminis.app.ui.components.openExternalUrl
-import com.openminis.app.i18n.uppercaseForDisplay
+import com.openminis.app.ui.components.SectionDesign
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,56 +104,37 @@ fun SettingsScreen(
     // OEM autostart guidance). Default no-op so older callers/tests
     // don't need to be retrofitted.
     onBackgroundClick: () -> Unit = {},
-    // Hook accepted for forward-compat with AppNavigation's About route. The
-    // About row below still has a TODO onClick in HEAD; future settings-bucket
-    // work will wire this through.
+    // About retains its routed update, version, and app information screen.
     onAboutClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var showFeedbackSheet by remember { mutableStateOf(false) }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.settings_back),
-                        )
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
-        ) {
+    SettingsScaffold(
+        title = stringResource(R.string.settings_title),
+        onBack = onBack,
+    ) {
             // -- LLM Providers --
-            SettingsSection(
+            SettingsHubSection(
                 title = stringResource(R.string.settings_section_llm_providers),
                 footer = stringResource(R.string.settings_section_llm_providers_footer),
             ) {
                 SettingsItem(
                     icon = Icons.Outlined.Lock,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_manage_providers),
                     subtitle = stringResource(R.string.settings_manage_providers_subtitle),
                     onClick = onProvidersClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Settings,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_model_groups),
                     subtitle = stringResource(R.string.settings_model_groups_subtitle),
                     onClick = onModelGroupsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.BarChart,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_token_usage),
                     subtitle = stringResource(R.string.settings_token_usage_subtitle),
                     onClick = onUsageClick,
@@ -177,10 +143,10 @@ fun SettingsScreen(
             }
 
             // -- Appearance --
-            SettingsSection(title = stringResource(R.string.settings_section_appearance)) {
+            SettingsHubSection(title = stringResource(R.string.settings_section_appearance)) {
                 SettingsItem(
                     icon = Icons.Outlined.Palette,
-                    iconColor = Color(0xFF5856D6),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_section_appearance),
                     subtitle = stringResource(R.string.settings_appearance_subtitle),
                     onClick = onAppearanceClick,
@@ -189,68 +155,55 @@ fun SettingsScreen(
             }
 
             // -- Agent Runtime --
-            // [T-android-settings-runtime-order] Row order matches iOS
-            // (ContentView.swift, Section "Agent Runtime"): Agent Tools, Sub
-            // Agents, Skills, Soul, Memory, MCP, Environment Variables.
-            //
-            // The order is not alphabetical or historical — it runs from what
-            // the agent may DO (tools, and who it may hand work to) to what it
-            // is made OF (skills, identity, memory) and finally to what it
-            // connects to (MCP, env). Android had grown its own order simply by
-            // appending each row as it landed, which put the two capability
-            // switches in the middle of the identity rows.
-            SettingsSection(title = stringResource(R.string.settings_section_agent_runtime)) {
+            // Capabilities, identity and memory, then connected services.
+            SettingsHubSection(title = stringResource(R.string.settings_section_agent_runtime)) {
                 // [T-tools-granular-switches] Which optional tools the agent may use.
                 SettingsItem(
                     icon = Icons.Outlined.Handyman,
-                    iconColor = Color(0xFF5E5CE6),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_agent_tools),
                     subtitle = stringResource(R.string.settings_agent_tools_subtitle),
                     onClick = onAgentToolsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Groups,
-                    iconColor = com.openminis.app.ui.chat.HelperAccentStatic,
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_agents),
                     subtitle = stringResource(R.string.settings_agents_subtitle),
                     onClick = onAgentsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Extension,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_skills),
                     subtitle = stringResource(R.string.settings_skills_subtitle),
                     onClick = onSkillsClick,
                 )
-                // [T-soul-md] Between Skills and Memory, as on iOS.
                 SettingsItem(
                     icon = Icons.Outlined.AutoAwesome,
-                    iconColor = Color(0xFFFF9500),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_soul),
                     subtitle = stringResource(R.string.settings_soul_subtitle),
                     onClick = onSoulClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Psychology,
-                    iconColor = Color(0xFF5856D6),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_memory),
                     subtitle = stringResource(R.string.settings_memory_subtitle),
                     onClick = onMemoryClick,
                 )
-                // [T-mcp-integration-android] MCP Integrations — below Memory.
-                // [T-android-mcp-icon-distinct] Dashboard (2x2 block grid) instead of
-                // Extension so MCP no longer shares the Skills row's puzzle-piece icon —
-                // the grid reads as "multiple composed blocks/servers". teal unchanged.
+                // Distinct grid icon for composed MCP services.
                 SettingsItem(
                     icon = Icons.Outlined.Dashboard,
-                    iconColor = Color(0xFF30B0C7),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_mcp),
                     subtitle = stringResource(R.string.settings_mcp_subtitle),
                     onClick = onMcpClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Terminal,
-                    iconColor = Color(0xFF34C759),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_env_vars),
                     subtitle = stringResource(R.string.settings_env_vars_subtitle),
                     onClick = onEnvVarsClick,
@@ -259,31 +212,31 @@ fun SettingsScreen(
             }
 
             // -- Storage --
-            SettingsSection(title = stringResource(R.string.settings_section_storage)) {
+            SettingsHubSection(title = stringResource(R.string.settings_section_storage)) {
                 SettingsItem(
                     icon = Icons.Outlined.Inventory2,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_section_storage),
                     subtitle = stringResource(R.string.settings_storage_subtitle),
                     onClick = onRootfsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Folder,
-                    iconColor = Color(0xFF34C759),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_shared_folders),
                     subtitle = stringResource(R.string.settings_shared_folders_subtitle),
                     onClick = onSharedFoldersClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.FolderShared,
-                    iconColor = Color(0xFFFF9500),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_mount_external_folders),
                     subtitle = stringResource(R.string.settings_mount_external_folders_subtitle),
                     onClick = onMountedFoldersClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Backup,
-                    iconColor = Color(0xFF34C759),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_backup_restore),
                     subtitle = stringResource(R.string.settings_backup_restore_subtitle),
                     onClick = onBackupClick,
@@ -291,34 +244,32 @@ fun SettingsScreen(
                 )
             }
 
-            // -- Network -- [FEAT-261021-04, iOS c77be4fb6] its own section below
-            // Storage: Network Routing, Tailscale, Proxies and the Shell
-            // Container DNS (until now only on the Rootfs page).
-            SettingsSection(title = stringResource(R.string.network_title)) {
+            // -- Network --
+            SettingsHubSection(title = stringResource(R.string.network_title)) {
                 SettingsItem(
                     icon = Icons.Outlined.Lan,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.network_routing_title),
                     subtitle = null,
                     onClick = onNetworkClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.VpnLock,
-                    iconColor = Color(0xFF5856D6),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.network_tailscale),
                     subtitle = null,
                     onClick = onTailscaleClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Router,
-                    iconColor = Color(0xFFFF9500),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.network_proxies),
                     subtitle = null,
                     onClick = onProxiesClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Dns,
-                    iconColor = Color(0xFF8E8E93),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.network_container_dns),
                     subtitle = null,
                     onClick = onContainerDnsClick,
@@ -327,10 +278,10 @@ fun SettingsScreen(
             }
 
             // -- Permissions --
-            SettingsSection(title = stringResource(R.string.settings_section_permissions)) {
+            SettingsHubSection(title = stringResource(R.string.settings_section_permissions)) {
                 SettingsItem(
                     icon = Icons.Outlined.Shield,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_section_permissions),
                     subtitle = stringResource(R.string.settings_permissions_subtitle),
                     onClick = onPermissionsClick,
@@ -339,13 +290,13 @@ fun SettingsScreen(
             }
 
             // -- Background & Notifications (T50) --
-            SettingsSection(
+            SettingsHubSection(
                 title = stringResource(R.string.bg_section_header),
                 footer = stringResource(R.string.bg_section_footer),
             ) {
                 SettingsItem(
                     icon = Icons.Outlined.BatteryFull,
-                    iconColor = Color(0xFFFF9500),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.bg_section_header),
                     subtitle = stringResource(R.string.bg_section_subtitle),
                     onClick = onBackgroundClick,
@@ -354,10 +305,10 @@ fun SettingsScreen(
             }
 
             // -- Logs --
-            SettingsSection(title = stringResource(R.string.settings_section_logs)) {
+            SettingsHubSection(title = stringResource(R.string.settings_section_logs)) {
                 SettingsItem(
                     icon = Icons.Outlined.Description,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_section_logs),
                     subtitle = stringResource(R.string.settings_logs_subtitle),
                     onClick = onLogsClick,
@@ -366,12 +317,12 @@ fun SettingsScreen(
             }
 
             // -- About --
-            SettingsSection(title = stringResource(R.string.settings_section_about)) {
+            SettingsHubSection(title = stringResource(R.string.settings_section_about)) {
                 // [T-update-channels] The update badge's Settings layer.
                 val updateBadge by com.openminis.app.data.UpdateStateStore.hasUpdateBadge.collectAsState()
                 SettingsItem(
                     icon = Icons.Outlined.Info,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_about_minis),
                     subtitle = stringResource(R.string.settings_about_subtitle),
                     onClick = onAboutClick,
@@ -379,15 +330,14 @@ fun SettingsScreen(
                 )
                 SettingsItem(
                     icon = Icons.Outlined.FrontHand,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_privacy_policy),
                     subtitle = null,
-                    // iOS canonical URL — ContentView.swift / AddProviderView.swift
                     onClick = { openExternalUrl(context, "https://openminis.github.io/privacy-policy.html") },
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Feedback,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.settings_feedback),
                     subtitle = null,
                     onClick = { showFeedbackSheet = true },
@@ -397,7 +347,6 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(24.dp))
         }
-    }
 
     if (showFeedbackSheet) {
         ModalBottomSheet(onDismissRequest = { showFeedbackSheet = false }) {
@@ -440,8 +389,9 @@ private fun FeedbackSheetItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = SectionDesign.RowMinHeight)
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = SectionDesign.ScreenHorizontalPadding, vertical = SectionDesign.RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -535,11 +485,7 @@ private fun buildBugReportUrl(): String {
         "&body=$encodedBody"
 }
 
-/**
- * Compose a `mailto:` URL with a prefilled subject and body that include
- * app version, Android version, and device model. Mirrors iOS
- * `ContentView.makeFeedbackEmailURL()`.
- */
+/** Feedback email includes the installed version and device information. */
 private fun buildFeedbackMailto(): String {
     val body = """
         Please describe your feedback:
@@ -557,58 +503,17 @@ private fun buildFeedbackMailto(): String {
     return "mailto:dev@openminis.app?subject=$subject&body=$encodedBody"
 }
 
-/**
- * A grouped settings section with header and optional footer, matching iOS grouped List sections.
- */
+/** The hub uses the same grouping primitive as all settings detail pages. */
 @Composable
-private fun SettingsSection(
+private fun SettingsHubSection(
     title: String,
     footer: String? = null,
     content: @Composable () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 20.dp),
-    ) {
-        // Section header
-        Text(
-            text = title.uppercaseForDisplay(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.5.sp,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-        )
-
-        // Section card
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(color = MaterialTheme.colorScheme.surfaceContainerLow),
-        ) {
-            content()
-        }
-
-        // Section footer
-        if (footer != null) {
-            Text(
-                text = footer,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
-                lineHeight = 16.sp,
-            )
-        }
-    }
+    SettingsSection(header = title, footer = footer) { content() }
 }
 
-/**
- * A single settings row item with colored icon, title, optional subtitle, and chevron.
- * Styled to match iOS settings rows with SF Symbol-like colored circle icons.
- */
+/** Shared row styling with the existing update indicator kept in the trailing slot. */
 @Composable
 private fun SettingsItem(
     icon: ImageVector,
@@ -620,77 +525,14 @@ private fun SettingsItem(
     // [T-update-channels] A small dot before the chevron.
     badge: Boolean = false,
 ) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Colored circle icon (matching iOS settings style)
-            Box(
-                modifier = Modifier
-                    .size(30.dp)
-                    .background(
-                        color = iconColor,
-                        shape = CircleShape,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-
-            Spacer(Modifier.width(14.dp))
-
-            // Title + subtitle
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            if (badge) {
-                UpdateBadgeDot()
-                Spacer(Modifier.width(8.dp))
-            }
-
-            // Chevron
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp),
-            )
-        }
-
-        // Divider between items (inset to match icon alignment)
-        if (showDivider) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 58.dp, end = 14.dp)
-                    .height(0.5.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-            )
-        }
-    }
+    SettingsRow(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        iconColor = iconColor,
+        onClick = onClick,
+        showDivider = showDivider,
+        trailing = if (badge) ({ UpdateBadgeDot() }) else null,
+    )
 }
 

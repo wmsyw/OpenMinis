@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,14 +20,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.openminis.app.R
-import com.openminis.app.ui.components.MinisTextButton
 
 /**
- * App-wide confirmation dialog. Tighter than the Material 3 default
- * (16 dp radius, titleLarge instead of headlineSmall) so small
- * confirmation prompts don't read as oversized cards. The destructive
- * variant tints the confirm button with `colorScheme.error`, matching
- * the pattern iOS uses for `UIAlertActionStyle.destructive`.
+ * Shared confirmation panel with the theme's 28dp dialog corners and neutral
+ * surface. Destructive actions use the semantic error role; optional third
+ * actions and caller-supplied neutral colors retain their existing behavior.
  */
 @Composable
 fun MinisAlertDialog(
@@ -62,9 +58,9 @@ fun MinisAlertDialog(
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true),
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = 0.dp,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(

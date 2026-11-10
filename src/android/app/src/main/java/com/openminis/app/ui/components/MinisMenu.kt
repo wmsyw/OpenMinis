@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -43,11 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
-import com.openminis.app.ui.theme.ChatColors
 
 /**
- * App-wide popup menu with a unified look: softer rounded corners, a lifted
- * shadow, and a clean tonal surface that matches the Teal theme.
+ * App-wide popup menu with 14dp corners and a clean, neutral panel.
  *
  * Drop-in replacement for [androidx.compose.material3.DropdownMenu] — pass
  * [DropdownMenuItem] children as before.
@@ -60,63 +57,19 @@ fun MinisMenu(
     offset: DpOffset = DpOffset(0.dp, 0.dp),
     scrollState: ScrollState = rememberScrollState(),
     properties: PopupProperties = PopupProperties(focusable = true),
-    // [T-android-menu-launcher-shadow] 20dp (was 14) — moved toward the Pixel
-    // Launcher shortcut popup's plumper corner language the user asked us to
-    // mirror (the launcher itself sits near 28dp, but that reads bloated on a
-    // dense 8-item list menu).
-    shape: Shape = RoundedCornerShape(20.dp),
-    // [T-android-popup-dark-bg] In dark mode bare `surface` is nearly the same
-    // as the chat/list background, so these popups (session-row long-press menu,
-    // top-bar tools menu, message-bubble menu) read as near-invisible light
-    // cards. Use the distinctly-elevated `surfaceContainerHigh` (a lighter grey
-    // in dark, a subtle shade in light) so the menu pops out — same fix already
-    // validated on the text-selection toolbar (T-android-text-toolbar-dark-
-    // visibility). The dark-mode `border` below adds the extra edge definition.
-    containerColor: Color = if (ChatColors.isDark) MaterialTheme.colorScheme.surfaceContainerHigh else Color.White,
-    tonalElevation: Dp = 3.dp,
-    // [T-android-menu-shadow-clip] Surface's own shadow, capped at
-    // [MinisMenuPosition.MAX_POPUP_SHADOW_ELEVATION] (8dp).
-    //
-    // Why not the launcher-style 24dp halo any more (2d6b3e360): a Compose
-    // Popup is its own system window, and AndroidPopup reserves room around
-    // its content for a shadow of at most `maxSupportedElevation = 8.dp`
-    // (larger values hit a pre-S surface-insets matrix bug that breaks
-    // accessibility). A 24dp shadow ran far past that reserve and was cut
-    // off in a straight line at the window rectangle — the "shadow looks
-    // odd / runs past the right edge" user report (Telegram, Android).
-    // Material3's DropdownMenu stays inside the reserve the same way
-    // (Surface shadowElevation ≈ 3dp). 6dp keeps a little more lift than
-    // that while still fitting.
-    //
-    // A launcher-size halo would need transparent padding around the
-    // content at least as wide as the shadow's spread, with that padding
-    // subtracted again in the position provider — deliberately not done.
-    shadowElevation: Dp = 6.dp,
-    // Light mode also gets a hairline: the popup's edge needs a subtle line
-    // of its own to stay crisply bounded on light surfaces.
-    border: BorderStroke? = if (ChatColors.isDark) {
-        BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-    } else {
-        BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.05f))
-    },
+    shape: Shape = MaterialTheme.shapes.medium,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    tonalElevation: Dp = 0.dp,
+    // Android's popup window reserves at most 8dp for a shadow.
+    shadowElevation: Dp = 3.dp,
+    border: BorderStroke? = null,
     minWidth: Dp = 180.dp,
-    // T238: when true, anchor the menu's RIGHT edge to the anchor box's
-    // right edge instead of Material3 DropdownMenu's default left-anchor
-    // behaviour. Used by the user-message bubble menu so the popup tracks
-    // the right-aligned chat bubble — mirrors iOS Messages.app context
-    // menu. Vertical placement still goes below the anchor with auto-flip
-    // above when there's no room.
+    // Optional physical right-edge anchoring, with automatic vertical flipping.
     alignEnd: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // [T-android-minis-menu-ios26-anim] BOTH branches (default left-anchored and
-    // alignEnd right-anchored) now render through ONE custom Popup +
-    // AnimatedVisibility so every MinisMenu gets the same iOS 26-style
-    // 200ms scale-from-anchor + fade enter animation. Material3's DropdownMenu
-    // (the old default branch) had a fixed, non-tunable ~120ms scale; converting
-    // it to this Popup lets us control duration/origin uniformly. Popup unmounts
-    // immediately on expanded=false, so this is an enter-only animation — the
-    // dismiss is instant, matching the prior alignEnd behaviour.
+    // Share positioning and anchor-based entry across both alignment modes.
+    // Dismissal remains immediate so no invisible popup can intercept input.
     if (!expanded) return
     val density = LocalDensity.current
     val offsetXPx = with(density) { offset.x.roundToPx() }
@@ -146,7 +99,7 @@ fun MinisMenu(
         // (its Column is verticalScroll) instead of being pushed off-screen.
         BoxWithConstraints {
             val maxMenuHeight = (maxHeight - MinisMenuPosition.VERTICAL_MARGIN * 2).coerceAtLeast(0.dp)
-            // iOS 26-style enter: scale up from the anchor corner + fade, 200ms.
+            // Scale and fade from the anchor corner on entry.
             // Seeded false then flipped true on first composition so the enter
             // animation runs as the Popup mounts. transformOrigin is the anchor
             // corner: top-right for alignEnd (right-anchored), top-left otherwise.
@@ -261,27 +214,20 @@ internal object MinisMenuPosition {
 }
 
 /**
- * Subtle inset divider for grouping items inside a [MinisMenu]. T289:
- * `outlineVariant×0.35 + 0.5dp` was effectively invisible on the light
- * surface — the divider lines between sections looked like nothing was
- * there. Bumped to `Color.Black/White × 0.12 + 1.dp` so the rule is
- * legible without feeling heavy. Theme-aware so dark mode uses
- * white instead of black for contrast against the dark surface.
+ * Subtle inset divider using the same neutral rule as chat and settings.
  */
 @Composable
 fun MinisMenuDivider(modifier: Modifier = Modifier) {
-    val tint = if (ChatColors.isDark) Color.White else Color.Black
     HorizontalDivider(
         modifier = modifier.padding(horizontal = 14.dp, vertical = 4.dp),
         thickness = 1.dp,
-        color = tint.copy(alpha = 0.12f),
+        color = MaterialTheme.colorScheme.outlineVariant,
     )
 }
 
 /**
- * Consistent row padding + colors for menu items. Use this to tighten the
- * default Material3 48dp row to 44dp and give the leading icon breathing room
- * that matches the iOS context-menu look.
+ * Shared padding and semantic colors for native Material menu items.
+ * The native 48dp minimum target remains intact.
  */
 object MinisMenuDefaults {
     val ItemPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
@@ -289,7 +235,7 @@ object MinisMenuDefaults {
     @Composable
     fun itemColors(
         textColor: Color = MaterialTheme.colorScheme.onSurface,
-        leadingIconColor: Color = MaterialTheme.colorScheme.primary,
+        leadingIconColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
         trailingIconColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     ): MenuItemColors = MenuDefaults.itemColors(
         textColor = textColor,

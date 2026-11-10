@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -47,6 +50,7 @@ import com.openminis.app.data.model.ModelGroup
 import com.openminis.app.data.model.ProviderInstance
 import com.openminis.app.data.model.ProviderType
 import com.openminis.app.data.repository.ProviderRepository
+import com.openminis.app.ui.components.SectionDesign
 import com.openminis.app.ui.components.MinisButton
 import com.openminis.app.ui.components.MinisTextButton
 
@@ -72,27 +76,38 @@ fun OnboardingScreen(
 @Composable
 private fun WelcomeStep(onNext: () -> Unit) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(SectionDesign.ScreenHorizontalPadding),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp),
+            modifier = Modifier
+                .clip(SectionDesign.CardShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .padding(24.dp),
         ) {
             Text(
                 stringResource(R.string.onboarding_welcome_title),
                 style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             Text(
                 stringResource(R.string.onboarding_welcome_subtitle),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(48.dp))
-            MinisButton(onClick = onNext, modifier = Modifier.fillMaxWidth(0.6f)) {
+            Spacer(Modifier.height(28.dp))
+            MinisButton(
+                onClick = onNext,
+                shape = SectionDesign.ControlShape,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(stringResource(R.string.onboarding_get_started))
             }
         }
@@ -109,12 +124,15 @@ private fun ApiKeyStep(
     var apiKey by remember { mutableStateOf("") }
     var saved by remember { mutableStateOf(false) }
 
-    Scaffold { padding ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(SectionDesign.ScreenHorizontalPadding),
         ) {
             Text(
                 stringResource(R.string.onboarding_provider_title),
@@ -137,8 +155,10 @@ private fun ApiKeyStep(
                 for (type in listOf(ProviderType.anthropic, ProviderType.gemini, ProviderType.openAI, ProviderType.openRouter)) {
                     val isSelected = type == selectedType
                     Card(
+                        shape = SectionDesign.ControlShape,
                         modifier = Modifier
                             .weight(1f)
+                            .heightIn(min = 48.dp)
                             .clickable { selectedType = type; apiKey = ""; saved = false },
                     ) {
                         Text(
@@ -162,6 +182,7 @@ private fun ApiKeyStep(
                 onValueChange = { apiKey = it; saved = false },
                 label = { Text(stringResource(R.string.onboarding_provider_api_key_label, selectedType.displayName)) },
                 modifier = Modifier.fillMaxWidth(),
+                shape = SectionDesign.ControlShape,
                 singleLine = true,
             )
 
@@ -189,6 +210,7 @@ private fun ApiKeyStep(
                 },
                 enabled = apiKey.isNotBlank() && !saved,
                 modifier = Modifier.fillMaxWidth(),
+                shape = SectionDesign.ControlShape,
             ) {
                 Text(stringResource(if (saved) R.string.onboarding_saved else R.string.onboarding_save_api_key))
             }
@@ -202,7 +224,7 @@ private fun ApiKeyStep(
                 MinisTextButton(onClick = onSkip) {
                     Text(stringResource(R.string.common_skip))
                 }
-                MinisButton(onClick = onNext, enabled = saved) {
+                MinisButton(onClick = onNext, enabled = saved, shape = SectionDesign.ControlShape) {
                     Text(stringResource(R.string.common_next))
                 }
             }

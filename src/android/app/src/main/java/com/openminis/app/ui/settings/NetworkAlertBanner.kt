@@ -32,7 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import com.openminis.app.ui.theme.ChatColors
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -96,7 +96,8 @@ private fun NetworkAlertBanner(event: NetworkAlertEvent, onOpen: () -> Unit, onD
     }
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = Color(0xF2FF9500),
+        color = ChatColors.warningBg,
+        contentColor = ChatColors.warningText,
         shadowElevation = 6.dp,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = 480.dp).fillMaxWidth(),
     ) {
@@ -105,14 +106,14 @@ private fun NetworkAlertBanner(event: NetworkAlertEvent, onOpen: () -> Unit, onD
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier.weight(1f).clickable(onClick = onOpen).padding(start = 14.dp, top = 10.dp, bottom = 10.dp),
             ) {
-                Icon(Icons.Filled.Warning, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Warning, contentDescription = null, tint = ChatColors.warningText, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.size(10.dp))
                 Column {
-                    Text(title, color = Color.White, fontWeight = FontWeight.SemiBold,
+                    Text(title, color = ChatColors.warningText, fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         stringResource(R.string.network_alert_banner_body, event.failures, failureReason(event.failureClass)),
-                        color = Color.White.copy(alpha = 0.92f),
+                        color = ChatColors.warningText,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 3,
                     )
@@ -120,7 +121,7 @@ private fun NetworkAlertBanner(event: NetworkAlertEvent, onOpen: () -> Unit, onD
             }
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.network_alert_dismiss),
-                    tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(16.dp))
+                    tint = ChatColors.warningText, modifier = Modifier.size(16.dp))
             }
         }
     }
@@ -146,7 +147,7 @@ internal fun failureReason(failureClass: String): String = stringResource(
 internal fun NetworkFailureNote(event: NetworkAlertEvent, modifier: Modifier = Modifier) {
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Warning, contentDescription = null, tint = Color(0xFFFF9500), modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.Warning, contentDescription = null, tint = ChatColors.warningText, modifier = Modifier.size(16.dp))
             Spacer(Modifier.size(6.dp))
             Text(
                 stringResource(R.string.network_alert_note, event.failures, failureReason(event.failureClass)),

@@ -16,6 +16,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -28,7 +31,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.openminis.app.R
@@ -49,12 +51,10 @@ import com.openminis.app.ui.theme.ChatColors
  * Also used by New Chat's "a task is running" guard, with its own title and
  * button labels and the [body] override.
  *
- * Drawn as the iOS action sheet the same choice uses (ChatSendButton
- * `.confirmationDialog`): a card at the bottom with the centred title and
- * message over full-width, centred buttons divided by hairlines - the safe
- * choice in the accent colour, Stop All in red - and Cancel, bold, on a card
- * of its own below. The Material alert it replaces stacked three text
- * buttons at the right edge under a left-aligned body.
+ * Uses a neutral, rounded bottom panel with native Material actions. The
+ * current-tool action keeps the primary accent; stopping everything uses
+ * the error role. The scope labels and callbacks are shared with New Chat's
+ * running-task guard.
  */
 @Composable
 internal fun StopChoiceDialog(
@@ -118,22 +118,18 @@ private fun StopActionSheet(
     onDismiss: () -> Unit,
     actions: List<SheetAction>,
 ) {
-    val dark = ChatColors.isDark
-    // iOS system colours for an action sheet: the grouped card, the tint and
-    // the destructive red, in each appearance.
-    val card = if (dark) Color(0xFF2C2C2E) else Color(0xFFF9F9F9)
-    val accent = if (dark) Color(0xFF0A84FF) else Color(0xFF007AFF)
-    val red = if (dark) Color(0xFFFF453A) else Color(0xFFFF3B30)
+    val card = MaterialTheme.colorScheme.surfaceContainerHigh
+    val accent = MaterialTheme.colorScheme.primary
+    val red = MaterialTheme.colorScheme.error
     val hairline = ChatColors.separator
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(28.dp)
     val noRipple = remember { MutableInteractionSource() }
 
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        // Full-window so the sheet can sit at the bottom; a tap above it
-        // dismisses, as outside an iOS action sheet.
+        // Full-window so the panel sits at the bottom; outside taps dismiss it.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -146,7 +142,7 @@ private fun StopActionSheet(
                     .fillMaxWidth()
                     .statusBarsPadding()
                     .navigationBarsPadding()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
                     // Taps on the sheet itself do not dismiss it.
                     .clickable(interactionSource = noRipple, indication = null, onClick = {}),
             ) {
@@ -168,24 +164,20 @@ private fun StopActionSheet(
                             .weight(1f, fill = false)
                             .fillMaxWidth()
                             .verticalScroll(androidx.compose.foundation.rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                            .padding(horizontal = 24.dp, vertical = 20.dp),
+                        horizontalAlignment = Alignment.Start,
                     ) {
                         Text(
                             text = title,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ChatColors.secondaryText,
-                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = ChatColors.primaryText,
                         )
                         if (message.isNotEmpty()) {
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 text = message,
-                                fontSize = 13.sp,
-                                lineHeight = 17.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = ChatColors.secondaryText,
-                                textAlign = TextAlign.Center,
                             )
                         }
                     }
@@ -207,19 +199,18 @@ private fun StopActionSheet(
 
 @Composable
 private fun SheetButton(label: String, color: Color, weight: FontWeight, onClick: () -> Unit) {
-    Box(
+    TextButton(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center,
+            .heightIn(min = 48.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.textButtonColors(contentColor = color),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Text(
             text = label,
-            fontSize = 19.sp,
-            fontWeight = weight,
-            color = color,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = weight),
             textAlign = TextAlign.Center,
         )
     }
