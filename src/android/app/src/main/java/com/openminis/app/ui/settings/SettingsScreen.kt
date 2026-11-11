@@ -146,7 +146,7 @@ fun SettingsScreen(
             SettingsHubSection(title = stringResource(R.string.settings_section_appearance)) {
                 SettingsItem(
                     icon = Icons.Outlined.Palette,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.tertiary,
                     title = stringResource(R.string.settings_section_appearance),
                     subtitle = stringResource(R.string.settings_appearance_subtitle),
                     onClick = onAppearanceClick,
@@ -160,35 +160,35 @@ fun SettingsScreen(
                 // [T-tools-granular-switches] Which optional tools the agent may use.
                 SettingsItem(
                     icon = Icons.Outlined.Handyman,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.tertiary,
                     title = stringResource(R.string.settings_agent_tools),
                     subtitle = stringResource(R.string.settings_agent_tools_subtitle),
                     onClick = onAgentToolsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Groups,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.tertiary,
                     title = stringResource(R.string.settings_agents),
                     subtitle = stringResource(R.string.settings_agents_subtitle),
                     onClick = onAgentsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Extension,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.tertiary,
                     title = stringResource(R.string.settings_skills),
                     subtitle = stringResource(R.string.settings_skills_subtitle),
                     onClick = onSkillsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.AutoAwesome,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.tertiary,
                     title = stringResource(R.string.settings_soul),
                     subtitle = stringResource(R.string.settings_soul_subtitle),
                     onClick = onSoulClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Psychology,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.tertiary,
                     title = stringResource(R.string.settings_memory),
                     subtitle = stringResource(R.string.settings_memory_subtitle),
                     onClick = onMemoryClick,
@@ -196,14 +196,14 @@ fun SettingsScreen(
                 // Distinct grid icon for composed MCP services.
                 SettingsItem(
                     icon = Icons.Outlined.Dashboard,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.tertiary,
                     title = stringResource(R.string.settings_mcp),
                     subtitle = stringResource(R.string.settings_mcp_subtitle),
                     onClick = onMcpClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Terminal,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.tertiary,
                     title = stringResource(R.string.settings_env_vars),
                     subtitle = stringResource(R.string.settings_env_vars_subtitle),
                     onClick = onEnvVarsClick,
@@ -215,28 +215,28 @@ fun SettingsScreen(
             SettingsHubSection(title = stringResource(R.string.settings_section_storage)) {
                 SettingsItem(
                     icon = Icons.Outlined.Inventory2,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_section_storage),
                     subtitle = stringResource(R.string.settings_storage_subtitle),
                     onClick = onRootfsClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Folder,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_shared_folders),
                     subtitle = stringResource(R.string.settings_shared_folders_subtitle),
                     onClick = onSharedFoldersClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.FolderShared,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_mount_external_folders),
                     subtitle = stringResource(R.string.settings_mount_external_folders_subtitle),
                     onClick = onMountedFoldersClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Backup,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_backup_restore),
                     subtitle = stringResource(R.string.settings_backup_restore_subtitle),
                     onClick = onBackupClick,
@@ -248,28 +248,28 @@ fun SettingsScreen(
             SettingsHubSection(title = stringResource(R.string.network_title)) {
                 SettingsItem(
                     icon = Icons.Outlined.Lan,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.network_routing_title),
                     subtitle = null,
                     onClick = onNetworkClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.VpnLock,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.network_tailscale),
                     subtitle = null,
                     onClick = onTailscaleClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Router,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.network_proxies),
                     subtitle = null,
                     onClick = onProxiesClick,
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Dns,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.network_container_dns),
                     subtitle = null,
                     onClick = onContainerDnsClick,
@@ -281,7 +281,7 @@ fun SettingsScreen(
             SettingsHubSection(title = stringResource(R.string.settings_section_permissions)) {
                 SettingsItem(
                     icon = Icons.Outlined.Shield,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_section_permissions),
                     subtitle = stringResource(R.string.settings_permissions_subtitle),
                     onClick = onPermissionsClick,
@@ -296,7 +296,7 @@ fun SettingsScreen(
             ) {
                 SettingsItem(
                     icon = Icons.Outlined.BatteryFull,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.bg_section_header),
                     subtitle = stringResource(R.string.bg_section_subtitle),
                     onClick = onBackgroundClick,
@@ -308,7 +308,7 @@ fun SettingsScreen(
             SettingsHubSection(title = stringResource(R.string.settings_section_logs)) {
                 SettingsItem(
                     icon = Icons.Outlined.Description,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_section_logs),
                     subtitle = stringResource(R.string.settings_logs_subtitle),
                     onClick = onLogsClick,
@@ -322,7 +322,7 @@ fun SettingsScreen(
                 val updateBadge by com.openminis.app.data.UpdateStateStore.hasUpdateBadge.collectAsState()
                 SettingsItem(
                     icon = Icons.Outlined.Info,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_about_minis),
                     subtitle = stringResource(R.string.settings_about_subtitle),
                     onClick = onAboutClick,
@@ -330,14 +330,14 @@ fun SettingsScreen(
                 )
                 SettingsItem(
                     icon = Icons.Outlined.FrontHand,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_privacy_policy),
                     subtitle = null,
                     onClick = { openExternalUrl(context, "https://openminis.github.io/privacy-policy.html") },
                 )
                 SettingsItem(
                     icon = Icons.Outlined.Feedback,
-                    iconColor = MaterialTheme.colorScheme.primary,
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     title = stringResource(R.string.settings_feedback),
                     subtitle = null,
                     onClick = { showFeedbackSheet = true },
@@ -403,7 +403,7 @@ private fun FeedbackSheetItem(
         Spacer(Modifier.width(16.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyLarge,
+            style = SectionDesign.rowTitleStyle(),
             color = MaterialTheme.colorScheme.onSurface,
         )
     }

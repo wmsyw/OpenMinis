@@ -226,10 +226,6 @@ fun ComposerSendButton(
     Box(
         modifier = modifier
             .size(48.dp)
-            .background(
-                if (canActivate && !busy) ChatColors.sendButton else MaterialTheme.colorScheme.surfaceContainerHighest,
-                CircleShape,
-            )
             .clip(CircleShape)
             .combinedClickable(
                 onClick = {
@@ -252,6 +248,16 @@ fun ComposerSendButton(
             },
         contentAlignment = Alignment.Center,
     ) {
+        // Separate the visible 36dp face from the unchanged 48dp gesture target.
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(
+                    if (canActivate && !busy) ChatColors.sendButton
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                    CircleShape,
+                ),
+        )
         if (busy) {
             DecorativeSpinner(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -263,7 +269,7 @@ fun ComposerSendButton(
                 Icons.Default.ArrowUpward,
                 contentDescription = "Send",
                 tint = if (canActivate) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -516,7 +522,6 @@ fun ComposerStopButton(
     Box(
         modifier = modifier
             .size(48.dp)
-            .background(ChatColors.sendButton, CircleShape)
             .clip(CircleShape)
             .combinedClickable(
                 onClick = {
@@ -535,11 +540,16 @@ fun ComposerStopButton(
             },
         contentAlignment = Alignment.Center,
     ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(ChatColors.sendButton, CircleShape),
+        )
         Icon(
             Icons.Default.Stop,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(18.dp),
         )
         ComposerChoiceMenu(
             expanded = menuVisible,

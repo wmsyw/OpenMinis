@@ -73,8 +73,6 @@ import com.openminis.app.ui.components.MinisAlertDialog
 import com.openminis.app.ui.util.bringIntoViewOnFocus
 import com.openminis.app.R
 import kotlinx.coroutines.launch
-import com.openminis.app.ui.components.MinisButton
-import com.openminis.app.ui.components.MinisOutlinedButton
 import com.openminis.app.ui.components.MinisSmallButton
 import com.openminis.app.ui.components.MinisSmallOutlinedButton
 import com.openminis.app.ui.components.MinisSmallTextButton
@@ -827,11 +825,9 @@ fun ProviderDetailScreen(
             }
         }
 
-        // Pure-action rows render as standalone buttons — no Section/Card wrap.
-        // Match iOS visual: button sits on the page background with horizontal
-        // gutter padding only. The 20dp top padding mirrors SettingsSection's
-        // top spacing so the rhythm against the cards above stays consistent.
-        MinisOutlinedButton(
+        // Low-frequency actions stay discoverable without competing with the
+        // configuration content. The shared buttons retain 48dp touch targets.
+        MinisTextButton(
             onClick = onAddCustomModel,
             modifier = Modifier
                 .fillMaxWidth()
@@ -841,19 +837,15 @@ fun ProviderDetailScreen(
             Text(stringResource(R.string.provider_detail_add_custom_model))
         }
 
-        // [T-android-delete-provider-button-height] The "Delete provider" button
-        // uses the same default 48dp MinisButtonHeight as "Add custom model"
-        // above it for visual consistency (no explicit .height override). The
-        // destructive intent is conveyed by the error container color, not by a
-        // taller button.
-        MinisButton(
+        // Destructive emphasis belongs to the confirmation, not a solid block.
+        MinisTextButton(
             onClick = { showDeleteDialog = true },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(top = 20.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.error,
             ),
         ) {
             Text(stringResource(R.string.provider_detail_delete_provider))

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,18 +42,21 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.openminis.app.R
 import com.openminis.app.ui.components.SectionDesign
+import com.openminis.app.ui.components.SectionCard
 import com.openminis.app.ui.components.SectionFooter
 import com.openminis.app.ui.components.SectionHeader
+import com.openminis.app.ui.theme.ChatColors
+import com.openminis.app.ui.theme.MinisBackdrop
 
 /**
  * Shared native Material settings primitives with quiet, tonal grouped panels.
@@ -87,95 +91,97 @@ fun SettingsScaffold(
     bottomBar: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            val titleSlot: @Composable () -> Unit = {
-                Text(
-                    title,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            }
-            val navigationSlot: @Composable () -> Unit = {
-                when {
-                    navigation != null -> navigation()
-                    onBack != null -> IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
+    // Editing/selection screens keep their single compact title and action layout.
+    // Only ordinary scrolling pages place the large title in the scroll content.
+    val largeTitle = scrollable && !centerTitle && navigation == null && onBack != null
+    MinisBackdrop(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                val titleSlot: @Composable () -> Unit = {
+                    if (!largeTitle) {
+                        Text(
+                            title,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.semantics { heading() },
+                        )
                     }
                 }
+                val navigationSlot: @Composable () -> Unit = {
+                    when {
+                        navigation != null -> navigation()
+                        onBack != null -> IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.padding(start = 8.dp).size(48.dp),
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.common_back),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+                if (centerTitle) {
+                    CenterAlignedTopAppBar(
+                        title = titleSlot,
+                        navigationIcon = navigationSlot,
+                        actions = { actions?.invoke() },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = Color.Transparent,
+                        ),
+                    )
+                } else {
+                    TopAppBar(
+                        title = titleSlot,
+                        navigationIcon = navigationSlot,
+                        actions = { actions?.invoke() },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                        ),
+                    )
+                }
+            },
+            floatingActionButton = { floatingActionButton?.invoke() },
+            bottomBar = { bottomBar?.invoke() },
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ) { padding ->
+            // Preserve the IME-aware viewport for bringIntoViewOnFocus and leave
+            // non-scrollable screens in charge of their own LazyColumn/scroll state.
+            val baseMod = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding()
+            Column(
+                modifier = if (scrollable) baseMod.verticalScroll(rememberScrollState()) else baseMod,
+            ) {
+                if (largeTitle) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .padding(
+                                horizontal = SectionDesign.HeadingHorizontalPadding,
+                                vertical = 4.dp,
+                            )
+                            .semantics { heading() },
+                    )
+                }
+                content()
             }
-            if (centerTitle) {
-                CenterAlignedTopAppBar(
-                    title = titleSlot,
-                    navigationIcon = navigationSlot,
-                    actions = { actions?.invoke() },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                )
-            } else {
-                TopAppBar(
-                    title = titleSlot,
-                    navigationIcon = navigationSlot,
-                    actions = { actions?.invoke() },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                    ),
-                )
-            }
-        },
-        floatingActionButton = { floatingActionButton?.invoke() },
-        bottomBar = { bottomBar?.invoke() },
-        containerColor = MaterialTheme.colorScheme.background,
-    ) { padding ->
-        // T183: imePadding() shrinks the scroll container by the IME's
-        // height while the keyboard is up, giving Modifier.bringIntoView()
-        // (used by `bringIntoViewOnFocus`) a meaningful "above the
-        // keyboard" rect to scroll a focused TextField into. Without it,
-        // adjustResize + edge-to-edge leaves the scrollable column at
-        // full height behind the IME and bringIntoView is a no-op.
-        val baseMod = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .imePadding()
-        Column(
-            modifier = if (scrollable) baseMod.verticalScroll(rememberScrollState()) else baseMod,
-            content = content,
-        )
+        }
     }
 }
 
 // ─── Switch ────────────────────────────────────────────────────────────────────
 
 /**
- * [T-android-switch-row-height] A [Switch] that does not inflate the row it
- * sits in. Use this instead of Material's `Switch` inside any settings row.
- *
- * ## The problem it solves
- *
- * Compose applies `LocalMinimumInteractiveComponentSize` (48dp) to Switch, so
- * although the control DRAWS at 32dp it MEASURES at 48. Inside a row whose
- * height is `heightIn(min = 56.dp)` + 12dp vertical padding, that produced:
- *
- *     with a switch:  48 + 12 + 12  = 72dp   (heightIn never applies)
- *     without one:    30 + 12 + 12  = 54dp   -> clamped to 56dp
- *
- * Measured on a Pixel 6: switch rows rendered 190px and plain rows 147px, a
- * visible 16dp step between neighbouring rows of the same card. It read as
- * "the Encryption section has odd spacing" when in fact every switch row in
- * the app was taller than every non-switch row.
- *
- * Row height remains content-driven so labels and controls can grow with font scale.
- *
- * ## Why waiving the minimum is safe here
- *
- * The 48dp floor exists so a small control is still easy to hit. In these rows
- * the WHOLE ROW is clickable and at least 56dp tall, and tapping anywhere on it
- * toggles the same state, so the effective touch target grows rather than
- * shrinks. Material's own guidance allows waiving the minimum exactly when a
- * control is embedded in a larger interactive surface.
- *
- * Do NOT use this for a standalone switch that is the only touch target.
+ * Compact switch for a settings row whose full width is already a touch target.
+ * Waive Material's extra 48dp measurement so the control does not inflate its
+ * parent; the clickable row still provides a minimum 52dp target and grows with
+ * its text. Standalone switches must retain Material's normal touch target.
  */
 @Composable
 fun SettingsSwitch(
@@ -219,15 +225,7 @@ fun SettingsSection(
         if (header != null) {
             SectionHeader(text = header)
         }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = SectionDesign.ScreenHorizontalPadding)
-                .clip(SectionDesign.CardShape)
-                .background(SectionDesign.cardColor())
-                .padding(vertical = SectionDesign.CardInnerVerticalPadding),
-            content = content,
-        )
+        SectionCard(content = content)
         if (footer != null) {
             SectionFooter(text = footer)
         }
@@ -252,10 +250,8 @@ fun SettingsRow(
     showDivider: Boolean = true,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
     trailing: (@Composable () -> Unit)? = null,
-    // [T-android-settings-ui-md3] #8 single-line List Item is 56dp; a caller with
-    // two-line content (e.g. the model list: name + id) passes 72dp for the MD3
-    // double-line height. Default keeps every other row at the single-line 56dp.
-    minHeight: Dp = 56.dp,
+    // Single- and two-line rows share the content-driven settings rhythm.
+    minHeight: Dp = if (subtitle == null) SectionDesign.RowMinHeight else SectionDesign.TwoLineRowMinHeight,
     // Long-press on a row that is also tappable (e.g. a skill's context menu).
     // Null keeps the plain clickable, so no other row changes.
     onLongClick: (() -> Unit)? = null,
@@ -264,12 +260,7 @@ fun SettingsRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // [T-android-settings-ui-md3] #1/#8 fixed List Item height so every
-                // toggle/value/nav row in a section is uniform (was content-driven
-                // → 24/54/72dp mix). heightIn(min) not height() so an unexpectedly
-                // tall row can still grow; the symmetric 12dp vertical padding (was
-                // effectively asymmetric once the 0.5dp divider was added/removed)
-                // is what made a no-subtitle last row read ~50px shorter.
+                // A minimum, never a fixed height: large text remains fully visible.
                 .heightIn(min = minHeight)
                 .then(
                     when {
@@ -287,18 +278,18 @@ fun SettingsRow(
             if (icon != null) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f), MaterialTheme.shapes.small),
+                        .size(SectionDesign.RowIconSize)
+                        .background(iconColor.copy(alpha = if (ChatColors.isDark) 0.10f else 0.06f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = lerp(MaterialTheme.colorScheme.primary, iconColor, 0.15f),
-                        modifier = Modifier.size(20.dp),
+                        tint = iconColor,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(SectionDesign.RowIconTextGap))
             }
 
             Column(
@@ -307,14 +298,14 @@ fun SettingsRow(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = SectionDesign.rowTitleStyle(),
                     color = titleColor,
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = SectionDesign.rowSubtitleStyle(),
+                        color = ChatColors.tertiaryText,
                     )
                 }
             }
@@ -329,14 +320,18 @@ fun SettingsRow(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
+                    tint = ChatColors.tertiaryText,
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
 
         if (showDivider) {
-            val insetStart = if (icon != null) 60.dp else SectionDesign.DividerStartInset
+            val insetStart = if (icon != null) {
+                SectionDesign.RowHorizontalPadding + SectionDesign.RowIconSize + SectionDesign.RowIconTextGap
+            } else {
+                SectionDesign.DividerStartInset
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -402,7 +397,7 @@ fun SettingsValueRow(
         trailing = {
             Text(
                 value,
-                style = MaterialTheme.typography.bodyMedium,
+                style = SectionDesign.rowSubtitleStyle(),
                 color = valueColor,
                 modifier = Modifier.widthIn(max = 144.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -424,11 +419,9 @@ fun SettingsChoiceRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // [T-android-settings-ui-md3] #1 match SettingsRow's 56dp min so
-                // choice/radio rows line up with toggle/value rows in mixed lists.
-                .heightIn(min = 56.dp)
+                .heightIn(min = SectionDesign.RowMinHeight)
                 .clickable(onClick = onSelect)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = SectionDesign.RowHorizontalPadding, vertical = SectionDesign.RowVerticalPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leading != null) {
@@ -437,7 +430,7 @@ fun SettingsChoiceRow(
             }
             Text(
                 title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = SectionDesign.rowTitleStyle(),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
@@ -473,7 +466,7 @@ fun SettingsCardBlock(
 ) {
     Column(
         modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = SectionDesign.RowHorizontalPadding, vertical = SectionDesign.RowVerticalPadding)
             .fillMaxWidth(),
         content = content,
     )

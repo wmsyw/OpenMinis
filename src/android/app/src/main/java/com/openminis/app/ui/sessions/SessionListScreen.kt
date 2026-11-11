@@ -116,8 +116,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Badge
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -183,6 +181,7 @@ import com.openminis.app.R
 import com.openminis.app.data.db.ChatSessionEntity
 import com.openminis.app.data.db.FolderEntity
 import com.openminis.app.ui.theme.ChatColors
+import com.openminis.app.ui.theme.MinisBackdrop
 import com.openminis.app.data.repository.ChatRepository
 import com.openminis.app.data.repository.ProviderRepository
 import kotlin.math.roundToInt
@@ -962,11 +961,12 @@ fun SessionListScreen(
     val scheduledBadgeCount = com.openminis.app.scheduled.ScheduledTaskStore
         .homeBadgeCount(scheduledTaskCount, showScheduledBadge)
 
+    MinisBackdrop(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         // Resize the whole scaffold so both its toolbar and list stay above
         // the IME; inset consumption prevents adding navigation space twice.
         modifier = Modifier.imePadding(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -982,18 +982,18 @@ fun SessionListScreen(
                     } else {
                         Column {
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
                                     Icons.Default.AutoAwesome,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(26.dp),
+                                    modifier = Modifier.size(20.dp),
                                 )
                                 Text(
                                     stringResource(R.string.app_name),
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Medium,
                                     style = MaterialTheme.typography.titleLarge,
                                 )
                             }
@@ -1023,21 +1023,33 @@ fun SessionListScreen(
                     }
                 },
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
                 ),
             )
         },
         bottomBar = {
             if (!isSelecting) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = SectionDesign.ScreenHorizontalPadding, vertical = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = ChatColors.inputBg.copy(alpha = 0.55f),
+                    contentColor = ChatColors.secondaryText,
+                    border = androidx.compose.foundation.BorderStroke(
+                        SectionDesign.DividerThickness,
+                        SectionDesign.dividerColor(),
+                    ),
+                    tonalElevation = 0.dp,
+                ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.background)
-                        .navigationBarsPadding()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                         // [T-android-scheduled-tasks-design] Scheduled-tasks entry,
                         // sits to the left of the Shell button on the home toolbar.
@@ -1056,12 +1068,17 @@ fun SessionListScreen(
                             Icon(
                                 Icons.Outlined.Schedule,
                                 contentDescription = stringResource(R.string.sessionlist_scheduled_tasks),
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                         // Shell menu (matching iOS trailing shell button: Terminal, Rootfs, Browser)
                         Box {
                             IconButton(onClick = { showOverflowMenu = true }) {
-                                Icon(Icons.Outlined.Terminal, contentDescription = stringResource(R.string.sessionlist_shell))
+                                Icon(
+                                    Icons.Outlined.Terminal,
+                                    contentDescription = stringResource(R.string.sessionlist_shell),
+                                    modifier = Modifier.size(20.dp),
+                                )
                             }
                             MinisMenu(
                                 expanded = showOverflowMenu,
@@ -1139,8 +1156,13 @@ fun SessionListScreen(
                                 null
                             },
                         ) {
-                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.sessionlist_settings))
+                            Icon(
+                                Icons.Outlined.Settings,
+                                contentDescription = stringResource(R.string.sessionlist_settings),
+                                modifier = Modifier.size(20.dp),
+                            )
                         }
+                }
                 }
             }
         },
@@ -1210,14 +1232,23 @@ fun SessionListScreen(
                 // even with no member: the list shows it rather than "no results".
                 if (sessions.isEmpty() && !(searchResultsActive && folderBlocks.isNotEmpty())) {
                     if (isSearchActive && searchQuery.isNotBlank()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
                         ) {
+                            Icon(
+                                Icons.Outlined.Search,
+                                contentDescription = null,
+                                tint = ChatColors.tertiaryText,
+                                modifier = Modifier.size(32.dp),
+                            )
+                            Spacer(Modifier.height(16.dp))
                             Text(
                                 text = stringResource(R.string.search_no_results, searchQuery),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
                             )
                         }
                     } else if (configLoaded) {
@@ -1615,6 +1646,7 @@ fun SessionListScreen(
             }
         }
     }
+    }
 
     // Single delete confirmation
     if (showDeleteDialog && deleteTargetId != null) {
@@ -1902,34 +1934,43 @@ private fun DualFabRow(
                     )
                 },
         ) {
-            FloatingActionButton(
-                onClick = onNewChat,
-                shape = RoundedCornerShape(14.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(14.dp))
                     .combinedClickable(
+                        role = androidx.compose.ui.semantics.Role.Button,
                         onClick = onNewChat,
                         onLongClick = {
                             if (topGroups.isNotEmpty()) showGroupMenu = true
                         },
-                    ),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Text(
-                        stringResource(R.string.new_chat),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
                     )
+                    .padding(vertical = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (ChatColors.isDark) MaterialTheme.colorScheme.primaryContainer
+                    else androidx.compose.ui.graphics.lerp(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.primary,
+                        0.16f,
+                    ),
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text(
+                            stringResource(R.string.new_chat),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
                 }
             }
             DropdownMenu(
@@ -1957,11 +1998,7 @@ private fun DualFabRow(
                 enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.85f),
                 exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.85f),
             ) {
-                FloatingActionButton(
-                    onClick = onSearchToggle,
-                    shape = RoundedCornerShape(14.dp),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
@@ -1978,19 +2015,32 @@ private fun DualFabRow(
                                 onDragCancel = { searchDragX = 0f },
                                 onHorizontalDrag = { _, dragAmount -> searchDragX += dragAmount },
                             )
-                        },
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text(
-                            stringResource(R.string.sessionlist_search_action),
-                            style = MaterialTheme.typography.labelLarge,
+                        }
+                        .clickable(
+                            role = androidx.compose.ui.semantics.Role.Button,
+                            onClick = onSearchToggle,
                         )
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = ChatColors.inputBg.copy(alpha = 0.48f),
+                        contentColor = ChatColors.secondaryText,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(
+                                stringResource(R.string.sessionlist_search_action),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Normal,
+                            )
+                        }
                     }
                 }
             }
@@ -2008,11 +2058,11 @@ private fun DualFabRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.weight(1f)) {
+            Box(Modifier.weight(if (isSwapped && !isSearchActive) 1f else 1.25f)) {
                 if (isSwapped && !isSearchActive) searchFab() else chatFab()
             }
             if (!isSearchActive) {
-                Box(Modifier.weight(1f)) {
+                Box(Modifier.weight(if (isSwapped) 1.25f else 1f)) {
                     if (isSwapped) chatFab() else searchFab()
                 }
             }
@@ -2051,12 +2101,12 @@ private fun DualFabRow(
                         }
                     }
                 },
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    focusedContainerColor = ChatColors.inputBg.copy(alpha = 0.88f),
+                    unfocusedContainerColor = ChatColors.inputBg.copy(alpha = 0.72f),
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = SectionDesign.dividerColor(),
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2180,7 +2230,12 @@ private fun SectionHeader(title: String) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 28.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
+            .padding(
+                start = LIST_GUTTER + AVATAR_INSET,
+                end = LIST_GUTTER,
+                top = SectionDesign.SectionTopGap,
+                bottom = SectionDesign.HeaderToCardGap,
+            ),
     ) {
         if (isPinned) {
             Icon(
@@ -2196,8 +2251,9 @@ private fun SectionHeader(title: String) {
         Text(
             text = title,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = ChatColors.secondaryText,
         )
     }
 }
@@ -2515,7 +2571,7 @@ private enum class FolderSegment { LONE, TOP, MIDDLE, BOTTOM }
 private fun folderEdgeColor(): Color = MaterialTheme.colorScheme.outlineVariant
 
 @Composable
-private fun folderFillColor(): Color = MaterialTheme.colorScheme.surfaceContainerLow
+private fun folderFillColor(): Color = SectionDesign.cardColor()
 
 private fun Modifier.folderSurface(
     segment: FolderSegment,
@@ -3189,7 +3245,7 @@ private fun SessionRow(
                 }
             )
             // Shared inner inset aligns all session avatars and folder tiles.
-            .padding(AVATAR_INSET),
+            .padding(horizontal = AVATAR_INSET, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -3216,10 +3272,11 @@ private fun SessionRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(36.dp)
+                    .align(Alignment.Center)
                     .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(14.dp),
+                        color = ChatColors.inputBg.copy(alpha = 0.60f),
+                        shape = RoundedCornerShape(10.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -3227,7 +3284,7 @@ private fun SessionRow(
                     imageVector = style,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(18.dp),
                 )
             }
             if (isActive) {
@@ -3259,14 +3316,14 @@ private fun SessionRow(
         // Title + last message (or highlighted snippet during search)
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(1.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             val titleText = session.title ?: stringResource(R.string.new_chat)
             if (searchQuery.isNotBlank()) {
                 Text(
                     text = highlightedAnnotatedString(titleText, searchQuery),
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (rowBackground != null && rowBackground != Color.Transparent) FontWeight.SemiBold else FontWeight.Normal,
+                    fontWeight = if (rowBackground != null && rowBackground != Color.Transparent) FontWeight.SemiBold else FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3275,7 +3332,7 @@ private fun SessionRow(
                 Text(
                     text = titleText,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (rowBackground != null && rowBackground != Color.Transparent) FontWeight.SemiBold else FontWeight.Normal,
+                    fontWeight = if (rowBackground != null && rowBackground != Color.Transparent) FontWeight.SemiBold else FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3306,8 +3363,9 @@ private fun SessionRow(
         // Relative timestamp
         Text(
             text = timeText,
+            modifier = Modifier.padding(top = 2.dp).align(Alignment.Top),
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = ChatColors.tertiaryText,
         )
     }
 }
@@ -3541,26 +3599,42 @@ private fun OnboardingLanding(
     onStartConversation: () -> Unit,
     onRestoreBackup: () -> Unit = {},
 ) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .widthIn(max = 520.dp)
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 24.dp),
+            .padding(horizontal = SectionDesign.ScreenHorizontalPadding, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            imageVector = Icons.Default.AutoAwesome,
-            contentDescription = null,
-            modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(Modifier.height(16.dp))
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .background(
+                    ChatColors.inputBg.copy(alpha = 0.72f),
+                    RoundedCornerShape(20.dp),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Spacer(Modifier.height(24.dp))
 
         Text(
             text = stringResource(R.string.sessionlist_welcome_title),
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
         Text(
@@ -3573,7 +3647,7 @@ private fun OnboardingLanding(
         Spacer(Modifier.height(32.dp))
 
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             SetupStepCard(
@@ -3646,6 +3720,7 @@ private fun OnboardingLanding(
                 )
             }
         }
+        }
     }
 }
 
@@ -3659,24 +3734,26 @@ private fun SetupStepCard(
     onClick: () -> Unit,
 ) {
     val isEnabled = !isDone && !isLocked
-
+    val foreground = if (isEnabled) MaterialTheme.colorScheme.onPrimary else ChatColors.secondaryText
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(SectionDesign.CardShape)
             .background(
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(20.dp),
+                if (isEnabled) MaterialTheme.colorScheme.primary
+                else ChatColors.inputBg.copy(alpha = 0.62f),
             )
+            .heightIn(min = SectionDesign.RowMinHeight)
             .clickable(enabled = isEnabled, onClick = onClick)
-            .padding(14.dp),
+            .padding(horizontal = 16.dp, vertical = if (isEnabled) 16.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
             modifier = Modifier
                 .size(32.dp)
                 .background(
-                    color = if (isDone) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
+                    color = foreground.copy(alpha = if (isEnabled) 0.14f else 0.08f),
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
@@ -3685,13 +3762,13 @@ private fun SetupStepCard(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(16.dp),
+                    tint = foreground,
+                    modifier = Modifier.size(18.dp),
                 )
             } else {
                 Text(
                     text = "$number",
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = foreground,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -3699,20 +3776,20 @@ private fun SetupStepCard(
         }
 
         Column(
-            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+            modifier = Modifier.weight(1f).heightIn(min = 40.dp),
             verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.Start,
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
-                color = if (isDone) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.onSurface,
+                color = foreground,
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = foreground,
             )
         }
 
@@ -3720,7 +3797,8 @@ private fun SetupStepCard(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = foreground,
+                modifier = Modifier.size(20.dp),
             )
         }
     }

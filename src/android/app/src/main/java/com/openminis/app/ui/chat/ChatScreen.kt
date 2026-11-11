@@ -2968,8 +2968,9 @@ fun ChatScreen(
         // map (which is last-writer-wins across sessions).
         LocalMarkdownSessionId provides sessionId,
     ) {
+    com.openminis.app.ui.theme.MinisBackdrop(modifier = Modifier.fillMaxSize()) {
     Scaffold(
-        containerColor = ChatColors.background,
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0),
         // [T-port-sched-pill] The top bar slot is the app bar plus, below it,
         // the scheduled-task pill, so the list (padded by the Scaffold) starts
@@ -2981,7 +2982,7 @@ fun ChatScreen(
                     // Session and model controls stay grouped above the reading column.
                     Box(
                         modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
+                        contentAlignment = Alignment.CenterStart,
                     ) {
                         val noFontPad = androidx.compose.ui.text.TextStyle(
                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
@@ -3023,11 +3024,11 @@ fun ChatScreen(
                             runFallbackPulse(fallbackTrigger, fallbackPulseBaseline, fallbackPulseAlpha.asPulseAlpha())
                         }
                         Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                            horizontalAlignment = Alignment.Start,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(MaterialTheme.colorScheme.error.copy(alpha = 0.25f * fallbackPulseAlpha.value))
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                                .padding(horizontal = 2.dp, vertical = 2.dp),
                         ) {
                             // Nav title: current session title when one
                             // exists and the toggle is on, else fall back to
@@ -3051,8 +3052,8 @@ fun ChatScreen(
                             }
                             Text(
                                 text = displayTitle,
-                                fontSize = 18.sp,
-                                lineHeight = 25.sp,
+                                fontSize = 16.sp,
+                                lineHeight = 22.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = ChatColors.primaryText,
                                 maxLines = 1,
@@ -3072,7 +3073,7 @@ fun ChatScreen(
                             // separated from the title above so tapping the
                             // title rows opens the rename sheet instead.
                             Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
+                                horizontalAlignment = Alignment.Start,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     // [T-android-modelpicker-stuck-ripple] Own the
@@ -3202,6 +3203,8 @@ fun ChatScreen(
                                             fontWeight = FontWeight.Medium,
                                             color = ChatColors.secondaryText,
                                             maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false),
                                             style = noFontPad,
                                         )
                                         Icon(
@@ -3300,65 +3303,14 @@ fun ChatScreen(
                     // [T-android-tablet-split] See `isTwoPane`.
                     if (!isTwoPane) {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", modifier = Modifier.size(20.dp))
                         }
                     } else if (onToggleSidebar != null) {
-                        // [T-android-tablet-sidebar-collapse] The slot the back
-                        // arrow vacates in two-pane becomes the sidebar toggle.
-                        //
-                        // ONE glyph for both states — the list icon, meaning
-                        // "the session list", with the action stated in the
-                        // content description instead.
-                        //
-                        // A directional chevron was tried for the expanded
-                        // state and is wrong here: this is the slot that used
-                        // to hold the back arrow, so a leading chevron reads as
-                        // "go back" — precisely the meaning two-pane removed.
-                        // Swapping the glyph on toggle also makes the control
-                        // look like two different buttons rather than one
-                        // switch. A stable icon whose accessible label changes
-                        // is both clearer and honest about what it targets.
-                        //
-                        // `Menu` rather than `List`, which this first used.
-                        // List draws a bulleted list — dots plus rules — whose
-                        // ink sat high and left in the 24dp box (measured 41x23
-                        // px with its mass above centre), so it read as a small
-                        // mark floating above the ⋮ at the other end of this
-                        // same bar. Menu's three full-width bars fill the box
-                        // symmetrically and optically centre against it; both
-                        // glyphs now share a baseline to the pixel. Menu is
-                        // also the conventional sidebar-toggle icon.
-                        //
-                        // [T-android-split-toggle-align] Two corrections, both
-                        // measured on a Mate Pad against the SESSION LIST's
-                        // toolbar rather than this bar's own ⋮ — the toggle sits
-                        // hard against the pane seam, so the icons it is read
-                        // beside are the list's Schedule/Terminal, not the
-                        // kebab at the far end of this bar. Aligned only to the
-                        // kebab, it measured 8px shorter and 3.5px lower than
-                        // its actual neighbours.
-                        //
-                        // 1. `offset(y = -2.dp)`: this bar is 68dp (see
-                        //    expandedHeight below — sized for the 3-row title
-                        //    and NOT reducible without re-triggering
-                        //    T-topbar-model-row-clip), while the list's bar is
-                        //    M3's default 64dp. A TopAppBar centres its
-                        //    navigation icon in its OWN height, so the 4dp
-                        //    difference put this glyph 2dp below the list's row.
-                        //    Offsetting by half the delta lands it on the list's
-                        //    baseline while leaving the taller bar intact.
-                        //
-                        // 2. `size(28.dp)`: Menu's three bars ink only ~12 of
-                        //    their 24dp viewport (bars at y=6/11/16), where the
-                        //    circular Schedule and boxy Terminal fill ~20 of
-                        //    theirs. At a matched box size Menu therefore reads
-                        //    markedly lighter and smaller. Scaling the box to
-                        //    28dp brings its ink to ~14dp, closing most of the
-                        //    optical gap. The IconButton's 48dp touch target is
-                        //    unchanged, so this is purely visual weight.
+                        // Keep a stable sidebar glyph; its label names the
+                        // show/hide action while both states retain a 48dp target.
                         IconButton(
                             onClick = onToggleSidebar,
-                            modifier = Modifier.offset(y = (-2).dp),
+                            modifier = Modifier.size(48.dp),
                         ) {
                             Icon(
                                 Icons.Filled.Menu,
@@ -3369,7 +3321,7 @@ fun ChatScreen(
                                         R.string.chat_hide_sidebar
                                     },
                                 ),
-                                modifier = Modifier.size(28.dp),
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                     }
@@ -3378,7 +3330,7 @@ fun ChatScreen(
                     // iOS: "..." circle button → dropdown menu
                     Box {
                         IconButton(onClick = { showChatMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More")
+                            Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(20.dp))
                         }
                         MinisMenu(
                             expanded = showChatMenu,
@@ -3729,10 +3681,21 @@ fun ChatScreen(
                 },
                 windowInsets = WindowInsets.statusBars,
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                    containerColor = ChatColors.background,
-                    scrolledContainerColor = ChatColors.background,
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
                 ),
-                expandedHeight = 76.dp,
+                // Convert each line independently: Android's nonlinear font
+                // scaling makes 64.sp shorter than the sum of smaller lines.
+                // Include both Columns' padding (4 + 2dp), the title's 4dp,
+                // and 8dp breathing room. Fixed icons can set a row's minimum.
+                expandedHeight = with(androidx.compose.ui.platform.LocalDensity.current) {
+                    val titleHeight = 22.sp.toDp()
+                    val pickerHeight = maxOf(14.sp.toDp(), 14.dp)
+                    val modelHeight = if (providerName.isNotEmpty() || modelName.isNotEmpty()) {
+                        maxOf(18.sp.toDp(), 11.sp.toDp() + 2.dp)
+                    } else 0.dp
+                    (titleHeight + pickerHeight + modelHeight + 18.dp).coerceAtLeast(64.dp)
+                },
             )
             // [T-port-sched-pill-visible] The REAL session id, read when the
             // pill composes. A new chat opens as a "__new__…" draft and gets
@@ -3791,25 +3754,9 @@ fun ChatScreen(
                 var callbackDetailBlock by remember { mutableStateOf<AssistantBlock?>(null) }
                 val density = LocalDensity.current
                 val toolBarHeightDp = with(density) { toolBarHeightPx.toDp() }
-                // T166 / T170 / T173: bottomReserve must clear the visible
-                // top of the floating tool-status overlay. Layout primitives
-                // come from FloatingToolStatusBar:
-                //   - status bar height = 38 dp
-                //   - thumbnail floats over the bar with overhang = 27 dp
-                //   - thumbnail TOP = bar top - overhang = 65 dp above the
-                //     input bar's upper edge (which is also the LazyColumn
-                //     bottom edge under reverseLayout).
-                //
-                // `onGloballyPositioned` on the wrapper Box reports ~98 dp
-                // because it includes wrapper padding(bottom=6) + horizontal
-                // padding insets + shadow allowance — none of which are
-                // *visually occluding* the LazyColumn. Using the measured
-                // value + 8 dp left a ~25 dp gap above the thumbnail (red
-                // box in the user's report).
-                //
-                // Pin to the visual constant: thumbnail height (65 dp) + a
-                // visual buffer (18 dp) so the latest row's bottom has clear
-                // breathing room above the thumbnail top.
+                // Reserve from shared visible geometry, not asynchronous
+                // wrapper measurements. The preview is contained within the
+                // 56dp row, including its 48dp pager targets.
                 //
                 // T174: an earlier version gated reserve on `toolBarHeightPx
                 // > 0`, but `onGloballyPositioned` fires asynchronously after
@@ -3836,7 +3783,7 @@ fun ChatScreen(
                 // only read `messages`, which the streaming architecture
                 // intentionally leaves stable during a turn — so the
                 // in-flight tool is invisible to this predicate → reserve
-                // collapsed to 20dp while a 65dp+6dp floating bar covered
+                // collapsed to 20dp while the floating bar covered
                 // the bottom of the LazyColumn. The new arrivals (status
                 // pill, "Minis is thinking" indicator, inline retry banner) landed
                 // behind the bar with no way to scroll them into view.
@@ -3874,37 +3821,9 @@ fun ChatScreen(
                     // predicate, compaction cut included.
                     hasFloatingToolBarBlocks(merged)
                 }
-                // Halve the breathing room above the input bar in both
-                // states — felt too sparse before. The thumbnail's 65dp
-                // physical height is preserved (it has to clear the
-                // floating overlay).
-                //
-                // T245: buffer raised 9dp → 14dp so the gap between the
-                // last LazyColumn tool row and the floating thumbnail's
-                // top reads at least as loose as the inter-tool spacing
-                // (each ToolCallPill carries padding(vertical = 3.dp) +
-                // LazyColumn spacedBy(2.dp) = ~8dp inter-tool gap; the
-                // 9dp buffer combined with the floating bar's internal
-                // overhang was visually tighter than 8dp). 14dp also
-                // matches the no-tool branch — single visual constant
-                // for "row-bottom → bottom chrome" breathing room.
-                // [T-bottom-occluded 0a6d3c92] No-tools branch bumped from
-                // 14dp → 20dp to give the last message bubble a comfortable
-                // gap above the composer's top edge. With 14dp the trailing
-                // line sat too close to the composer shadow / rounded edge
-                // (user reported "the bottom of the text is slightly clipped"). The floating-tools branch
-                // already reserves visualOverlayHeight (65dp) + buffer and
-                // was not part of the report; keep its +14 buffer.
-                // [T-android-toolbar-gap] Measured from what is actually
-                // drawn: the thumbnail's top with Tool preview ON, the bar's
-                // own top with it OFF. Pinning to the 65dp thumbnail in both
-                // states left a 27dp-larger gap above a preview-less bar.
-                // The gap above the overlay's visible top is the same 8dp
-                // either way (ON: 6 + 65 + 8 = 79dp, the reserve it always
-                // had). It reads the same state the bar's LocalToolPreviewEnabled
-                // is fed from, so the reserve and the bar change in the same
-                // frame; a toggle
-                // re-pins through LaunchedEffect(bottomReserve) below.
+                // Reserve the actual visible top: the independent 65dp preview
+                // when enabled, or just the 38dp status bar when disabled.
+                // Both retain 8dp breathing room and re-pin via bottomReserve.
                 val bottomReserve =
                     if (hasFloatingTools) {
                         FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
@@ -4309,7 +4228,7 @@ fun ChatScreen(
                     // LE(messages.size)USER-SEND-SNAP). Those fire — the logs
                     // show all three landing `idx=0 off=0` — but position 0
                     // under reverseLayout is the LazyColumn's own bottom edge,
-                    // which the floating tool bar (65dp thumbnail + overhang)
+                    // which the integrated tool-status row
                     // covers. contentPadding.bottom already reserves that space
                     // via bottomReserve, yet the reserve does NOT change here:
                     // a tool bar was already on screen before the enqueue, so
@@ -5508,7 +5427,9 @@ fun ChatScreen(
                 val upFabVisible = messages.isNotEmpty() && !isNearBottom.value
                 val downFabVisible =
                     userScrolledAway && contentOverflows.value && messages.isNotEmpty()
-                val fabBaseDp = if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
+                val fabBaseDp = if (lastToolBlocks.isNotEmpty()) {
+                    FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
+                } else 8.dp
                 val fabStackTopDp = when {
                     upFabVisible -> fabBaseDp + 46.dp + 36.dp
                     downFabVisible -> fabBaseDp + 36.dp
@@ -5611,7 +5532,9 @@ fun ChatScreen(
                 // spacing). Tapping walks BACK one user turn at a time rather
                 // than jumping to the oldest message.
                 if (messages.isNotEmpty() && !isNearBottom.value) {
-                    val upBaseBottom = if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
+                    val upBaseBottom = if (lastToolBlocks.isNotEmpty()) {
+                        FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
+                    } else 8.dp
                     androidx.compose.material3.FilledIconButton(
                         onClick = {
                             // [T-android-updown-fab-asymmetry] Arm the same flag a
@@ -5653,7 +5576,9 @@ fun ChatScreen(
                 }
 
                 if (userScrolledAway && contentOverflows.value && messages.isNotEmpty()) {
-                    val fabBottomPadding = if (lastToolBlocks.isNotEmpty()) 80.dp else 8.dp
+                    val fabBottomPadding = if (lastToolBlocks.isNotEmpty()) {
+                        FloatingToolBarMetrics.visibleTop(toolPreviewEnabled) + FloatingToolBarMetrics.ROW_GAP
+                    } else 8.dp
                     androidx.compose.material3.FilledIconButton(
                         onClick = {
                             // [T-android-scroll-fab-down-stuck] Clear the
@@ -6316,8 +6241,8 @@ fun ChatScreen(
                                     }
                             } else Modifier,
                         )
-                        .background(ChatColors.inputBg, RoundedCornerShape(28.dp))
-                        .border(0.5.dp, ChatColors.inputBorder, RoundedCornerShape(28.dp))
+                        .background(ChatColors.inputBg.copy(alpha = 0.94f), RoundedCornerShape(22.dp))
+                        .border(0.5.dp, ChatColors.inputBorder, RoundedCornerShape(22.dp))
                         // [T-android-context-usage-hint] Ambient inner glow
                         // along the card's inside edge once the context window
                         // is under pressure. Applied to the composer CARD (not
@@ -6325,7 +6250,7 @@ fun ChatScreen(
                         // glowing, and drawn as a paint pass only — no layout,
                         // no touch interception, so the caret, the +/mic/send
                         // buttons and every hit target are untouched. The
-                        // radius matches the composer's 28.dp corners.
+                        // radius matches the composer's 22.dp corners.
                         //
                         // Reads `contextUsage`, which refreshes on every usage
                         // chunk, so the colour tracks pressure live rather
@@ -6334,7 +6259,7 @@ fun ChatScreen(
                         // crossfade honours it.
                         .contextUsageGlow(
                             tier = contextUsage?.tier ?: ContextUsage.Tier.NORMAL,
-                            cornerRadius = 28.dp,
+                            cornerRadius = 22.dp,
                             animate = !animationsDisabled(context),
                         )
                         .padding(top = if (attachments.isNotEmpty()) 8.dp else 4.dp),
@@ -7240,23 +7165,11 @@ fun ChatScreen(
                                         focusedContainerColor = Color.Transparent,
                                         unfocusedContainerColor = Color.Transparent,
                                     ),
-                                    // T7: vertical 10dp → 7dp (≈ −15%) to slim the
-                                    // chat composer. Settings TextFields keep
-                                    // Material3 default padding — those are
-                                    // 1-shot config inputs, not the daily-
-                                    // friction surface the user wants tightened.
-                                    // T185: 12dp horizontal lines the
-                                    // typed text up with the +/slash and
-                                    // mic/send icon-button row below
-                                    // (Modifier.padding(horizontal = 12.dp)
-                                    // there) and the attachment chip row
-                                    // (also 12dp). 16dp left an unaligned
-                                    // jog where the text started further
-                                    // right than every other composer
-                                    // element.
+                                    // The field and 48dp action row share a compact
+                                    // inset; multiline drafts still grow naturally.
                                     contentPadding = PaddingValues(
                                         horizontal = 12.dp,
-                                        vertical = 10.dp,
+                                        vertical = 4.dp,
                                     ),
                                 )
                             },
@@ -7272,7 +7185,7 @@ fun ChatScreen(
                             // T185: 12dp horizontal lines the +/slash and
                             // mic/send icon-button column up with the
                             // attachment row + textfield + Move-to popup.
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.Bottom,
                     ) {
                         val sttState by com.openminis.app.speech.SpeechRecognitionManager
@@ -7280,10 +7193,10 @@ fun ChatScreen(
 
                         FlowRow(
                             modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(0.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                        // Left: + button (iOS: 34×34 circle, secondary bg)
+                        // Plain attachment glyph in a full 48dp target.
                         Box {
                             InputCircleButton(
                                 onClick = { showAttachMenu = true },
@@ -7302,7 +7215,7 @@ fun ChatScreen(
                                 // iOS parity: Take Photo / Choose Photos & Videos / Add File
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_attach_take_photo)) },
-                                    leadingIcon = { Icon(Icons.Default.CameraAlt, contentDescription = null) },
+                                    leadingIcon = { Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(20.dp)) },
                                     onClick = {
                                         showAttachMenu = false
                                         val granted = ContextCompat.checkSelfPermission(
@@ -7318,7 +7231,7 @@ fun ChatScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_attach_choose_photos_videos)) },
-                                    leadingIcon = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) },
+                                    leadingIcon = { Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(20.dp)) },
                                     onClick = {
                                         showAttachMenu = false
                                         mediaPickerLauncher.safeLaunchPicker(
@@ -7332,7 +7245,7 @@ fun ChatScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_attach_add_file)) },
-                                    leadingIcon = { Icon(Icons.Default.Description, contentDescription = null) },
+                                    leadingIcon = { Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(20.dp)) },
                                     onClick = {
                                         showAttachMenu = false
                                         // OpenMultipleDocuments takes a mime-
@@ -7343,7 +7256,7 @@ fun ChatScreen(
                             }
                         }
 
-                        // Left: "/" slash command button (iOS: italic /, bold)
+                        // Slash-command control shares the same unpainted target.
                         InputCircleButton(onClick = {
                             if (viewModel.showSlashMenu.value) {
                                 viewModel.setInputText(viewModel.dismissSlashMenu(inputText))
@@ -7354,7 +7267,7 @@ fun ChatScreen(
                             Text(
                                 "/",
                                 fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Medium,
                                 fontStyle = FontStyle.Italic,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -7402,8 +7315,6 @@ fun ChatScreen(
                             Box(
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .background(ChatColors.inputIconBg, CircleShape)
-                                    .border(0.5.dp, ChatColors.inputIconBorder, CircleShape)
                                     .clip(CircleShape)
                                     .clickable { showLangSheet = true },
                                 contentAlignment = Alignment.Center,
@@ -8162,6 +8073,7 @@ fun ChatScreen(
         )
         }
     }
+    } // MinisBackdrop
 
     // Browser bottom sheet
     if (showBrowserSheet) {

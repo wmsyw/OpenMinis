@@ -1,5 +1,6 @@
 package com.openminis.app.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,8 +14,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.openminis.app.ui.theme.ChatColors
 
 /**
  * Shared settings rhythm for native Material pages: cool, quiet grouped panels,
@@ -23,6 +28,7 @@ import androidx.compose.ui.unit.dp
  */
 object SectionDesign {
     val ScreenHorizontalPadding = 16.dp
+    val HeadingHorizontalPadding = 24.dp
     val CardShape = RoundedCornerShape(20.dp)
     val ControlShape = RoundedCornerShape(14.dp)
     val FirstSectionTopGap = 16.dp
@@ -30,17 +36,36 @@ object SectionDesign {
     val HeaderToCardGap = 8.dp
     val CardToFooterGap = 8.dp
     val InterRowGap = 8.dp
-    val RowMinHeight = 48.dp
+    val RowMinHeight = 52.dp
+    val TwoLineRowMinHeight = 64.dp
     val TextFieldMinHeight = 56.dp
     val RowHorizontalPadding = 16.dp
-    val RowVerticalPadding = 12.dp
+    val RowVerticalPadding = 8.dp
+    val RowIconSize = 28.dp
+    val RowIconTextGap = 12.dp
     val CardInnerVerticalPadding = 4.dp
     val DividerThickness = 0.5.dp
     val DividerStartInset = 16.dp
 
     @Composable
     @ReadOnlyComposable
-    fun cardColor(): Color = MaterialTheme.colorScheme.surfaceContainerLow
+    fun cardColor(): Color = Color.White.copy(alpha = if (ChatColors.isDark) 0.05f else 0.68f)
+
+    @Composable
+    @ReadOnlyComposable
+    fun cardBorderColor(): Color = Color.White.copy(alpha = if (ChatColors.isDark) 0.07f else 0.52f)
+
+    @Composable
+    @ReadOnlyComposable
+    fun rowTitleStyle(): TextStyle = MaterialTheme.typography.bodyLarge.let {
+        it.copy(fontSize = it.fontSize * (15f / 16f), lineHeight = it.lineHeight * (21f / 26f))
+    }
+
+    @Composable
+    @ReadOnlyComposable
+    fun rowSubtitleStyle(): TextStyle = MaterialTheme.typography.bodySmall.let {
+        it.copy(fontSize = it.fontSize * (13f / 12f), lineHeight = it.lineHeight * (19f / 18f))
+    }
 
     @Composable
     @ReadOnlyComposable
@@ -48,14 +73,14 @@ object SectionDesign {
 
     @Composable
     @ReadOnlyComposable
-    fun dividerColor(): Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+    fun dividerColor(): Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.24f)
 
     @Composable
     @ReadOnlyComposable
-    fun footerColor(): Color = MaterialTheme.colorScheme.onSurfaceVariant
+    fun footerColor(): Color = ChatColors.tertiaryText
 }
 
-/** Sentence-case section title, aligned to the panel's outer gutter. */
+/** Quiet section caption, inset slightly from the panel's outer gutter. */
 @Composable
 fun SectionHeader(
     text: String,
@@ -63,14 +88,14 @@ fun SectionHeader(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface,
+        color = ChatColors.tertiaryText,
         modifier = modifier.padding(
-            start = SectionDesign.ScreenHorizontalPadding,
-            end = SectionDesign.ScreenHorizontalPadding,
+            start = SectionDesign.HeadingHorizontalPadding,
+            end = SectionDesign.HeadingHorizontalPadding,
             bottom = SectionDesign.HeaderToCardGap,
-        ),
+        ).semantics { heading() },
     )
 }
 
@@ -82,11 +107,11 @@ fun SectionFooter(
 ) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodySmall,
+        style = SectionDesign.rowSubtitleStyle(),
         color = SectionDesign.footerColor(),
         modifier = modifier.padding(
-            start = SectionDesign.ScreenHorizontalPadding,
-            end = SectionDesign.ScreenHorizontalPadding,
+            start = SectionDesign.HeadingHorizontalPadding,
+            end = SectionDesign.HeadingHorizontalPadding,
             top = SectionDesign.CardToFooterGap,
         ),
     )
@@ -100,7 +125,9 @@ fun SectionCard(
 ) {
     Surface(
         color = SectionDesign.cardColor(),
+        contentColor = MaterialTheme.colorScheme.onSurface,
         shape = SectionDesign.CardShape,
+        border = BorderStroke(SectionDesign.DividerThickness, SectionDesign.cardBorderColor()),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = SectionDesign.ScreenHorizontalPadding),

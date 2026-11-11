@@ -85,6 +85,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -153,6 +154,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldDefaults
@@ -377,7 +379,6 @@ internal fun InputCircleButton(
     Box(
         modifier = Modifier
             .size(48.dp)
-            .background(ChatColors.inputIconBg, CircleShape)
             .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -389,7 +390,7 @@ internal fun InputCircleButton(
 /**
  * Mic button with a two-state appearance — mirrors iOS `MicButton`.
  *
- * Idle: outlined mic, neutral bg.
+ * Idle: plain neutral mic in a 48dp target.
  * Recording: filled mic, red-tinted bg, optional 2-letter locale badge
  * overlayed on the top-right (e.g. "EN", "ZH").
  */
@@ -405,15 +406,12 @@ internal fun MicButton(
     isVoiceActive: Boolean = false,
 ) {
     val bg = if (isRecording) MaterialTheme.colorScheme.errorContainer
-             else ChatColors.inputIconBg
+             else Color.Transparent
     val tint = if (isRecording) MaterialTheme.colorScheme.onErrorContainer
                else MaterialTheme.colorScheme.onSurfaceVariant
-    val borderColor = if (isRecording) Color.Transparent else ChatColors.inputIconBorder
     Box(
         modifier = Modifier
             .size(48.dp)
-            .background(bg, CircleShape)
-            .border(0.5.dp, borderColor, CircleShape)
             .clip(CircleShape)
             .combinedClickable(
                 onClick = onClick,
@@ -421,6 +419,11 @@ internal fun MicButton(
             ),
         contentAlignment = Alignment.Center,
     ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(bg, CircleShape),
+        )
         Icon(
             if (isVoiceActive) Icons.Default.Keyboard else Icons.Default.Mic,
             contentDescription = if (isVoiceActive) "Switch to keyboard"
@@ -589,7 +592,7 @@ private fun ToolPreviewThumbnail(
     val subAgentGlow = helperAccent()
     Box(
         modifier = Modifier
-            .size(width = 100.dp, height = 65.dp)
+            .size(width = 100.dp, height = FloatingToolBarMetrics.THUMBNAIL_HEIGHT)
             .clip(thumbnailShape)
             .background(ChatColors.codeBlockBg)
             .border(0.5.dp, ChatColors.thumbnailBorder, thumbnailShape)
@@ -925,32 +928,28 @@ private fun ToolPreviewThumbnail(
 
 // [T-android-tool-pager-longpress] ExperimentalFoundationApi is for
 // combinedClickable on the pager chevrons.
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 /**
- * [T-android-toolbar-gap] The floating tool bar's geometry, shared with the
- * chat list's bottom reserve so the two cannot drift apart.
- *
- * The reserve used to be pinned to the thumbnail's 65dp whenever the bar was
- * mounted. With Tool preview OFF no thumbnail is drawn and the bar is only
- * 38dp, so the last row sat 27dp (the thumbnail overhang) further from the bar
- * than it sits from the thumbnail with preview ON.
+ * Shared geometry for the independent thumbnail, status bar and list reserve.
+ * The 65dp preview overhangs the 38dp bar by 27dp; switching it off removes
+ * that overhang from both the list reserve and the floating scroll controls.
  */
 internal object FloatingToolBarMetrics {
     val BAR_HEIGHT = 38.dp
     val THUMBNAIL_HEIGHT = 65.dp
     /** ChatScreen's wrapper padding below the bar (above the composer). */
     val WRAPPER_BOTTOM_PADDING = 6.dp
-    /**
-     * List bottom padding beyond the overlay's visible top. 8dp keeps the
-     * reserve the preview-ON state always had (6 + 65 + 8 = 79dp).
-     */
     val ROW_GAP = 8.dp
 
-    /** How far the bar's visible top (the thumbnail's, when shown) sits above the list's bottom edge. */
+    /** Let the status text grow with system type without changing thumbnail size. */
+    @Composable
+    fun barHeight() = maxOf(BAR_HEIGHT, with(LocalDensity.current) { 20.sp.toDp() } + 12.dp)
+
+    @Composable
     fun visibleTop(previewEnabled: Boolean) =
-        WRAPPER_BOTTOM_PADDING + if (previewEnabled) THUMBNAIL_HEIGHT else BAR_HEIGHT
+        WRAPPER_BOTTOM_PADDING + if (previewEnabled) maxOf(barHeight(), THUMBNAIL_HEIGHT) else barHeight()
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun FloatingToolStatusBar(
     toolBlocks: List<AssistantBlock>,
@@ -1031,21 +1030,17 @@ internal fun FloatingToolStatusBar(
         }
     }
 
-    // iOS layout: ZStack(alignment: .bottomLeading)
-    // Thumbnail (100×65dp) floats ABOVE the status bar (38dp tall)
-    val thumbnailWidth = 100.dp
-    val thumbnailHeight = FloatingToolBarMetrics.THUMBNAIL_HEIGHT
-    val barHeight = FloatingToolBarMetrics.BAR_HEIGHT
-    val thumbnailOverhang = thumbnailHeight - barHeight  // 27dp above bar
+    // An independent 100×65dp window floats 27dp above the normal 38dp bar.
+    // The row's 48dp targets extend into clear space, not into adjacent targets.
+    val barHeight = FloatingToolBarMetrics.barHeight()
     val thumbnailInset = 10.dp
-    val barStartPadding = if (previewEnabled) thumbnailWidth + thumbnailInset + 8.dp else 12.dp
+    val barStartPadding = if (previewEnabled) 100.dp + thumbnailInset + 8.dp else 12.dp
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(top = if (previewEnabled) thumbnailOverhang else 0.dp),  // reserve space for overhang
+            .fillMaxWidth(),
     ) {
-        // Layer 1: Status bar (bottom layer, fills from bottom)
+        // Paint 38dp normally, while centering an unconstrained 48dp interaction row.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1053,7 +1048,8 @@ internal fun FloatingToolStatusBar(
                 .align(Alignment.BottomCenter)
                 .background(ChatColors.inputBg, RoundedCornerShape(14.dp))
                 .border(0.5.dp, ChatColors.toolBorder, RoundedCornerShape(14.dp))
-                .padding(start = barStartPadding, end = 12.dp),
+                .wrapContentHeight(Alignment.CenterVertically, unbounded = true)
+                .padding(start = barStartPadding, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Status icon
@@ -1065,7 +1061,7 @@ internal fun FloatingToolStatusBar(
                 // arc once and rotates a layer at ~30 fps.
                 DecorativeSpinner(
                     color = toolAccent,
-                    modifier = Modifier.size(15.dp),
+                    modifier = Modifier.size(16.dp),
                     strokeWidth = 1.5.dp,
                 )
             } else {
@@ -1075,7 +1071,7 @@ internal fun FloatingToolStatusBar(
                     isCancelled -> Icons.Default.Close to ToolCancelColor
                     else -> Icons.Default.Build to MaterialTheme.colorScheme.onSurfaceVariant
                 }
-                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(15.dp))
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
             }
 
             Spacer(modifier = Modifier.width(6.dp))
@@ -1096,11 +1092,13 @@ internal fun FloatingToolStatusBar(
                     maxLines = 1,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .combinedClickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() },
                             onLongClick = { showBarMenu = true },
-                        ) { onOpenCurrentDetail() },
+                        ) { onOpenCurrentDetail() }
+                        .wrapContentHeight(Alignment.CenterVertically),
                     overflow = TextOverflow.Ellipsis,
                 )
                 DropdownMenu(expanded = showBarMenu, onDismissRequest = { showBarMenu = false }) {
@@ -1121,27 +1119,27 @@ internal fun FloatingToolStatusBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
-                    Icon(
-                        Icons.Default.ChevronLeft,
-                        contentDescription = "Previous",
-                        tint = if (currentIndex > 0) MaterialTheme.colorScheme.onSurface
-                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                    Box(
                         modifier = Modifier
-                            .size(18.dp)
-                            // [T-android-tool-pager-longpress] Long-press jumps
-                            // to the first call. A turn can carry 60+ tool
-                            // calls, and stepping back one at a time is the
-                            // only way to reach the start otherwise. The
-                            // enabled guard already blocks both gestures at
-                            // index 0, so neither can move out of range.
+                            .size(48.dp)
+                            .clip(CircleShape)
                             .combinedClickable(
                                 enabled = currentIndex > 0,
-                                indication = null,
                                 interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(),
                                 onLongClick = { currentIndex = 0 },
                                 onClick = { if (currentIndex > 0) currentIndex-- },
                             ),
-                    )
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Default.ChevronLeft,
+                            contentDescription = "Previous",
+                            tint = if (currentIndex > 0) ChatColors.primaryText
+                                   else ChatColors.tertiaryText,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                     val positionLabel = stringResource(
                         R.string.tool_pager_position,
                         currentIndex + 1,
@@ -1149,7 +1147,7 @@ internal fun FloatingToolStatusBar(
                     )
                     Text(
                         "${currentIndex + 1}/${toolBlocks.size}",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1160,29 +1158,33 @@ internal fun FloatingToolStatusBar(
                         // pages the whole conversation's tool calls. Sighted
                         // users can infer this by paging; a screen reader
                         // otherwise announces only two numbers.
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.semantics {
                             contentDescription = positionLabel
                         },
                     )
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = "Next",
-                        tint = if (currentIndex < toolBlocks.lastIndex) MaterialTheme.colorScheme.onSurface
-                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
+                    Box(
                         modifier = Modifier
-                            .size(18.dp)
-                            // [T-android-tool-pager-longpress] Long-press jumps
-                            // to the last call — the live one while a turn is
-                            // still running, which is the position this bar
-                            // resets to on its own.
+                            .size(48.dp)
+                            .clip(CircleShape)
                             .combinedClickable(
                                 enabled = currentIndex < toolBlocks.lastIndex,
-                                indication = null,
                                 interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(),
                                 onLongClick = { currentIndex = toolBlocks.lastIndex },
                                 onClick = { if (currentIndex < toolBlocks.lastIndex) currentIndex++ },
                             ),
-                    )
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = "Next",
+                            tint = if (currentIndex < toolBlocks.lastIndex) ChatColors.primaryText
+                                   else ChatColors.tertiaryText,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
             // T170: stop button removed from the floating bar — only the
@@ -1190,11 +1192,11 @@ internal fun FloatingToolStatusBar(
             // on the same active tool felt redundant on tight screens.
         }
 
-        // Layer 2: Thumbnail floating above the bar (iOS: ZStack overlay)
+        // Independent preview window, bottom-aligned with the status bar.
         if (previewEnabled) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
+                    .align(Alignment.BottomStart)
                     .padding(start = thumbnailInset),
             ) {
                 // [T-android-browser-preview-thumb] Resolve the previous

@@ -163,11 +163,18 @@ scripts/          Rootfs preparation and developer tooling
 ```
 
 **Android UI.** The Android interface follows the dsh-go reference: light/dark
-mist and slate palettes, shared theme, shape and type tokens, and native
-Navigation Compose. It covers the session list, chat and composer, settings,
-terminal, and shared tool and browser sheets. For maintainers, `Theme.kt` and
-`ChatColors.kt` (`ui/theme/`) plus `SectionDesign.kt` (`ui/components/`) are
-the sources of truth under `src/android/app/src/main/java/com/openminis/app/`.
+mist and slate palettes, a cached gradient backdrop, translucent grouped panels,
+and native Navigation Compose. The chat composer keeps secondary controls quiet
+and preserves the separate, floating 100×65dp tool preview above its status bar.
+List and scroll-control clearance follows the visible preview-on/off geometry.
+Buttons use compact visible surfaces within 48dp touch targets. Headers account
+for each text line independently under
+Android's nonlinear font scaling. It covers the session list, chat and composer,
+settings, terminal, and shared tool and browser sheets. For maintainers,
+`Theme.kt`, `ChatColors.kt` and `MinisBackdrop.kt` (`ui/theme/`) plus
+`SectionDesign.kt` (`ui/components/`) are the sources of truth under
+`src/android/app/src/main/java/com/openminis/app/`. Page materials use cached
+draw brushes and translucent fills rather than realtime backdrop blur.
 
 ---
 

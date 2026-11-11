@@ -81,6 +81,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -772,7 +773,7 @@ internal fun ToolCallPill(
     // as a section divider rather than an action, said nothing about WHAT was
     // sent, could not be opened, and its own padding made it taller than the
     // capsules around it. The shared capsule fixes all four at once — the same
-    // 36dp metrics as every other tool, a tappable detail sheet, and the sub
+    // compact painted face and 48dp touch target, a detail sheet, and the sub
     // agent accent (toolAccentColor already maps subagent_task to the violet)
     // so it still reads as agent work.
     val controlSummary = helperControlSummary(block).takeIf {
@@ -822,23 +823,28 @@ internal fun ToolCallPill(
     // Pill stretches up to the full row width so long titles can ellipsize
     // without pushing the duration out of view. Title takes the remaining
     // space via weight(1f), duration stays fixed-width (softWrap=false).
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-      Box(modifier = Modifier.weight(1f, fill = false)) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Box(
+          modifier = Modifier
+              .weight(1f, fill = false)
+              .heightIn(min = 48.dp)
+              .combinedClickable(
+                  onClick = { onOpenDetail(block.id) },
+                  onLongClick = if (onRerunFromHere != null || onCopyDetails != null || onSearchInChat != null) {
+                      { showToolMenu = true }
+                  } else null,
+              )
+              .wrapContentHeight(Alignment.CenterVertically),
+      ) {
         Row(
             modifier = Modifier
-                .background(
-                    ChatColors.toolCapsuleBg,
-                    RoundedCornerShape(14.dp),
-                )
+                .background(ChatColors.toolCapsuleBg, RoundedCornerShape(14.dp))
                 .clip(RoundedCornerShape(14.dp))
-                .combinedClickable(
-                    onClick = { onOpenDetail(block.id) },
-                    onLongClick = if (onRerunFromHere != null || onCopyDetails != null || onSearchInChat != null) {
-                        { showToolMenu = true }
-                    } else null,
-                )
-                .padding(horizontal = 12.dp)
-                .heightIn(min = 48.dp),
+                .padding(horizontal = 10.dp, vertical = 5.dp)
+                .heightIn(min = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Status icon — always the typed tool icon. Color shifts to
@@ -901,14 +907,6 @@ internal fun ToolCallPill(
                     softWrap = false,
                     maxLines = 1,
                 )
-            }
-            // T168: restore per-tool stop button (reverts T117). Renders only
-            // for running/streaming/pending blocks so completed pills stay
-            // clean. Routes to the same global cancelStream() — there is no
-            // per-tool cancellation API on either platform.
-            if (isRunning && onStop != null) {
-                Spacer(modifier = Modifier.width(8.dp))
-                ToolStopButton(onStop = onStop)
             }
         }
         // [T-android-decorative-anim-perf] Shimmer overlay: its own layer, so
@@ -983,6 +981,11 @@ internal fun ToolCallPill(
             }
         }
       }
+        // Stop owns its full target beside the capsule, not inside its painted face.
+        if (isRunning && onStop != null) {
+            Spacer(modifier = Modifier.width(4.dp))
+            ToolStopButton(onStop = onStop)
+        }
         // T251: removed inline Retry affordance next to cancelled/failed pills —
         // the pill's own status icon (yellow on FAILED, gray on CANCELLED) is
         // already the unified failure tip. The button was visually noisy and

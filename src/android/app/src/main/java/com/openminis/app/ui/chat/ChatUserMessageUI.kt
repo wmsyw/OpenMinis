@@ -284,9 +284,7 @@ internal fun UserMessageBubble(
     message: ChatMessage,
     // [T-android-candidate-bubble-gap] When true, this bubble directly
     // follows another user bubble (no AssistantHeader between them), so add
-    // extra top padding to keep the two visually separated. Default false
-    // preserves the original 4dp symmetric spacing for the normal
-    // user→assistant→user cadence.
+    // extra top padding to keep distinct messages visually separated.
     precededByUser: Boolean = false,
     onCopy: () -> Unit = {},
     onRetry: (() -> Unit)? = {},
@@ -314,14 +312,9 @@ internal fun UserMessageBubble(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            // [T-android-user-assistant-spacing-16] 14dp top when stacked on
-            // another user bubble (User→User, left intentionally larger to
-            // separate distinct user messages — unchanged). When preceded by an
-            // ASSISTANT turn, 10dp so the Assistant→User boundary reads ~16dp
-            // together with the assistant trailing-block bottom + LazyColumn
-            // spacedBy(2). Bottom stays 4dp: the User→Assistant boundary is
-            // user.bottom(4) + spacedBy(2) + AssistantHeader.top(10) = 16.
-            .padding(top = if (precededByUser) 14.dp else 10.dp, bottom = 4.dp),
+            // Keep stacked requests distinct without adding empty chrome
+            // between the user bubble and the assistant's reading column.
+            .padding(top = if (precededByUser) 12.dp else 8.dp, bottom = 4.dp),
     ) {
         // Cap the bubble at 80% of the LazyColumn's available width (mirrors iOS
         // proportional sizing; prevents single-line messages from spanning the
@@ -387,7 +380,7 @@ internal fun UserMessageBubble(
                     ) {
                         val textColor = if (isQueued) secondaryTextColor else MaterialTheme.colorScheme.onSurface
                         val bubbleBg = if (isQueued) Color.Transparent else userBubbleColor
-                        val shape = RoundedCornerShape(20.dp)
+                        val shape = RoundedCornerShape(18.dp)
                         val dashedStroke = if (isQueued) {
                             Modifier.drawBehind {
                                 val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
@@ -396,7 +389,7 @@ internal fun UserMessageBubble(
                                         floatArrayOf(6.dp.toPx(), 4.dp.toPx()), 0f
                                     ),
                                 )
-                                val r = 20.dp.toPx()
+                                val r = 18.dp.toPx()
                                 drawRoundRect(
                                     color = secondaryTextColor.copy(alpha = 0.5f),
                                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
@@ -418,7 +411,7 @@ internal fun UserMessageBubble(
                         // press coords share a LayoutCoordinates space with the
                         // menu anchor.
                         androidx.compose.foundation.text.selection.DisableSelection {
-                            // T167: when queued, leave room for the 44dp cancel
+                            // T167: when queued, leave room for the 48dp cancel
                             // IconButton sibling. Without weight(1f, fill=false)
                             // a wide bubble would consume the full 80% width
                             // cap and squeeze the cancel button off-screen.
@@ -443,26 +436,22 @@ internal fun UserMessageBubble(
                                         .background(bubbleBg, shape)
                                         .clip(shape)
                                         .then(dashedStroke)
-                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                        .padding(horizontal = 14.dp, vertical = 9.dp),
                                 )
                             }
                         }
                         if (isQueued && onWithdraw != null) {
-                            // T52: bring the withdraw target up to Material's
-                            // 44dp recommended minimum so it can be hit
-                            // reliably from the soft-IME-keyboard region;
-                            // 28dp was below the spec and frustrating on
-                            // Pixel-class displays. Icon nudged to 24dp to
-                            // stay visually centred in the larger ring.
+                            // Keep cancellation easy to reach beside a compact
+                            // queued bubble without enlarging its glyph.
                             IconButton(
                                 onClick = onWithdraw,
-                                modifier = Modifier.size(44.dp),
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Cancel,
                                     contentDescription = "Withdraw queued message",
                                     tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(24.dp),
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
